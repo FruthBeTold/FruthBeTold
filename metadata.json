@@ -1,0 +1,7 @@
+{
+  "name": "Fruth Be Told",
+  "description": "A minimalist companion app for the Fruth Family Christmas Party featuring scavenger hunts, voting, and photos.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
