@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, ViewState, HuntItem, Poll, Photo, Game } from './types';
-import { IconHome, IconVillage, IconHouse, IconVote, IconCamera, IconLock, IconUpload, IconDownload, IconPlus, IconGamepad, IconTrophy } from './components/Icons';
+import { IconHome, IconVillage, IconHouse, IconVote, IconCamera, IconLock, IconUpload, IconDownload, IconPlus, IconGamepad, IconTrophy, IconSnow } from './components/Icons';
 import { Button, Input, Card } from './components/UI';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, increment, deleteDoc, addDoc, query, orderBy, writeBatch, getDoc, where, getDocs } from 'firebase/firestore';
@@ -74,11 +75,23 @@ const CHRISTMAS_FACTS = {
   ]
 };
 
-const GAME_RULES: Record<string, string> = {
-  'Corn Hole': "Teams take turns throwing bags at a raised platform with a hole in the far end. A bag in the hole scores 3 points, while one on the board scores 1 point. Play continues until a team or player reaches or exceeds the score of 21. \n\nCANCELLATION SCORING: The points of one player cancel out the points of their opponent. For example, if Team A scores 5 points and Team B scores 3 points in a round, Team A receives 2 points for that round and Team B receives 0.",
-  'Beer Pong': "Players throw a ping pong ball across a table with the intent of landing the ball in a cup of beer on the other end. If a ball lands in a cup, the beer is consumed and the cup is removed. The first side to eliminate all of the opponent's cups wins. \n\nBOUNCE: A ball that bounces on the table before going into a cup counts as 2 cups. \n\nBALLS BACK: If both partners make their shots in the same turn, they get the balls back to shoot again. \n\nREBOUND: If a player catches a ball after it bounces off a cup (before it hits the floor), they get a behind-the-back shot. \n\nRE-RACKS: Each team gets 2 re-racks per game.",
-  'Jenga': "Players take turns removing one block at a time from a tower constructed of 54 blocks. Each block removed is then placed on top of the tower, creating a progressively more unstable structure. The loser is the person who causes the tower to topple.",
-  'Connect 4': "Be the first to form a horizontal, vertical, or diagonal line of four of one's own discs. Players take turns dropping colored discs from the top into a seven-column, six-row vertically suspended grid."
+const GAME_RULES: Record<string, {en: string, es: string}> = {
+  'Corn Hole': {
+      en: "Teams take turns throwing bags at a raised platform with a hole in the far end. A bag in the hole scores 3 points, while one on the board scores 1 point. Play continues until a team or player reaches or exceeds the score of 21. \n\nCANCELLATION SCORING: The points of one player cancel out the points of their opponent. For example, if Team A scores 5 points and Team B scores 3 points in a round, Team A receives 2 points for that round and Team B receives 0.",
+      es: "Los equipos lanzan bolsas a una plataforma con un agujero. Bolsa en el agujero = 3 puntos, en el tablero = 1 punto. Gana quien llegue a 21. \n\nPUNTUACIÓN DE CANCELACIÓN: Los puntos de un jugador cancelan los del oponente. Ejemplo: Si Equipo A anota 5 y Equipo B anota 3, Equipo A recibe 2 puntos y Equipo B recibe 0."
+  },
+  'Beer Pong': {
+      en: "Players throw a ping pong ball across a table with the intent of landing the ball in a cup of beer on the other end. If a ball lands in a cup, the beer is consumed and the cup is removed. The first side to eliminate all of the opponent's cups wins. \n\nBOUNCE: A ball that bounces on the table before going into a cup counts as 2 cups. \n\nBALLS BACK: If both partners make their shots in the same turn, they get the balls back to shoot again. \n\nREBOUND: If a player catches a ball after it bounces off a cup (before it hits the floor), they get the behind-the-back shot. \n\nRE-RACKS: Each team gets 2 re-racks per game.",
+      es: "Lanza una pelota de ping pong a los vasos del otro extremo. Si entra, se bebe y se quita el vaso. Gana quien elimine todos los vasos. \n\nREBOTE: Si rebota en la mesa y entra = 2 vasos. \n\nBOLAS DE VUELTA: Si ambos compañeros encestan en el mismo turno, tiran de nuevo. \n\nREBOTE EN EL AIRE: Si atrapas una bola que rebotó en un vaso (antes de tocar el suelo), tienes un tiro por la espalda. \n\nRE-ORGANIZAR: 2 veces por juego."
+  },
+  'Jenga': {
+      en: "Players take turns removing one block at a time from a tower constructed of 54 blocks. Each block removed is then placed on top of the tower, creating a progressively more unstable structure. The loser is the person who causes the tower to topple.",
+      es: "Los jugadores retiran un bloque a la vez de una torre de 54 bloques y lo colocan encima, haciendo la estructura inestable. Pierde quien derribe la torre."
+  },
+  'Connect 4': {
+      en: "Be the first to form a horizontal, vertical, or diagonal line of four of one's own discs. Players take turns dropping colored discs from the top into a seven-column, six-row vertically suspended grid.",
+      es: "Sé el primero en formar una línea horizontal, vertical o diagonal de cuatro fichas. Los jugadores se turnan para dejar caer fichas en la rejilla."
+  }
 };
 
 const GAME_IMAGES: Record<string, string> = {
@@ -151,6 +164,7 @@ const INITIAL_HUNTS: HuntItem[] = [
   // House Questions
   {id:'hq1',text:'How many Steamboat Willies are there?',textEs:'¿Cuántos Barco de Vapor Willie hay?',type:'TEXT',huntType:'HOUSE',category:'Questions',categoryEs:'Preguntas'},
   {id:'hq3',text:'Who’s house is this years commemorative ornament resemble?',textEs:'¿A quién se parece el adorno conmemorativo de este año?',type:'TEXT',huntType:'HOUSE',category:'Questions',categoryEs:'Preguntas'},
+  {id:'hq4',text:'How many decorated Christmas trees are there?',textEs:'¿Cuántos árboles de Navidad decorados hay?',type:'TEXT',huntType:'HOUSE',category:'Questions',categoryEs:'Preguntas'},
 
   // Village Items
   {id:'v1',text:'Nativity Set',textEs:'Nacimiento',type:'CHECKBOX',huntType:'VILLAGE',category:'CHRISTMAS',categoryEs:'NAVIDAD'},
@@ -244,7 +258,7 @@ const UI = {
   en: { 
     nav:{HOME:'Home',HUNT_VILLAGE:'Village',HUNT_HOUSE:'House',VOTING:'Vote',GAMES:'Games',PHOTOS:'Photos',ADMIN:'Admin',PROFILE:'Profile'}, 
     home:{title:"CHRISTMAS PARTY 2025",hello:"Hello",partyTime:"PARTY TIME",send:"Send",comment:"Leave a note...",steps:["Grab a drink","Grab some food","Do a scavenger hunt","Play some games","Snap a photo at the photobooth","And most of all have a great time!"]}, 
-    games:{title:"Party Games",signup:"Sign Up",winner:"Winner"}, 
+    games:{title:"Party Games",signup:"Sign Up",winner:"Winner", rules:"Rules", history:"History", teams:"Teams", waiting:"Waiting...", selectPartner:"Select Partner...", addPartner:"+ Add Partner", leave:"Leave", close:"Close"}, 
     vote:{title:"Vote | Polls | Trivia",voteBtn:"Vote",voted:"Voted"}, 
     admin:{dashboard:"Dashboard",restart:"Restart Party",exit:"Exit"}, 
     welcome:{join:"Join Party"},
@@ -259,12 +273,25 @@ const UI = {
         phone: "Phone Number",
         submit: "Keep me in the loop!",
         trophies: "Hall of Fame"
+    },
+    install: {
+        title: "Add App to Home Screen",
+        select: "To install this app on your iPhone or iPad:",
+        ios: "Apple (iOS)",
+        android: "Android",
+        back: "← Back",
+        iosSteps: [
+            "Tap the **Share** button (square with arrow) at the bottom of your browser.",
+            "Scroll down and tap **'Add to Home Screen'**.",
+            "Tap **Add** in the top right corner."
+        ],
+        gotIt: "Got it!"
     }
   },
   es: { 
     nav:{HOME:'Inicio',HUNT_VILLAGE:'Villa',HUNT_HOUSE:'Casa',VOTING:'Votar',GAMES:'Juegos',PHOTOS:'Fotos',ADMIN:'Admin',PROFILE:'Perfil'}, 
-    home:{title:"FIESTA 2025",hello:"Hola",partyTime:"HORA DE FIESTA",send:"Enviar",comment:"Nota...",steps:["Bebida","Comida","Búsqueda","Juegos","Fotos","¡Diviértete!"]}, 
-    games:{title:"Juegos",signup:"Unirse",winner:"Ganador"}, 
+    home:{title:"FIESTA DE NAVIDAD 2025",hello:"Hola",partyTime:"HORA DE FIESTA",send:"Enviar",comment:"Nota...",steps:["Bebida","Comida","Búsqueda","Juegos","Fotos","¡Diviértete!"]}, 
+    games:{title:"Juegos",signup:"Unirse",winner:"Ganador", rules:"Reglas", history:"Historial", teams:"Equipos", waiting:"Esperando...", selectPartner:"Seleccionar Compañero...", addPartner:"+ Añadir Compañero", leave:"Salir", close:"Cerrar"}, 
     vote:{title:"Voto | Encuestas | Trivia",voteBtn:"Votar",voted:"Votado"}, 
     admin:{dashboard:"Panel",restart:"Reiniciar",exit:"Salir"}, 
     welcome:{join:"Unirse a la Fiesta"},
@@ -279,6 +306,19 @@ const UI = {
         phone: "Teléfono",
         submit: "¡Mantenme informado!",
         trophies: "Salón de la Fama"
+    },
+    install: {
+        title: "Añadir a Pantalla de Inicio",
+        select: "Para instalar esta app en tu iPhone o iPad:",
+        ios: "Apple (iOS)",
+        android: "Android",
+        back: "← Volver",
+        iosSteps: [
+            "Toca el botón **Compartir** (cuadrado con flecha) en la parte inferior.",
+            "Desliza y toca **'Añadir a Inicio'**.",
+            "Toca **Añadir** arriba a la derecha."
+        ],
+        gotIt: "¡Entendido!"
     }
   }
 };
@@ -290,12 +330,12 @@ const getTx = (obj: any, key: string, lang: 'en' | 'es') => {
 };
 
 const Header = ({ title, rightAction, subHeader }: { title: React.ReactNode, rightAction?: React.ReactNode, subHeader?: React.ReactNode }) => (
-  <div className="bg-white/90 backdrop-blur-md flex flex-col z-20 shadow-sm relative rounded-b-2xl">
-    <div className="p-4 flex justify-between items-center h-16">
-        <div className="text-xl font-bold font-sweater text-red-800 truncate">{title}</div>
+  <div className="bg-white/90 backdrop-blur-md flex flex-col z-20 shadow-sm relative rounded-b-3xl">
+    <div className="p-4 flex justify-between items-center h-24">
+        <div className="text-4xl font-bold font-sweater text-red-800 truncate leading-none drop-shadow-sm">{title}</div>
         <div className="flex items-center gap-2">{rightAction}</div>
     </div>
-    {subHeader && <div className="px-4 pb-2">{subHeader}</div>}
+    {subHeader && <div className="px-6 pb-4">{subHeader}</div>}
   </div>
 );
 
@@ -322,13 +362,77 @@ const SnowFall = ({ className = "fixed inset-0 z-10" }: { className?: string }) 
   );
 };
 
+// Advanced Canvas based snow for AR
+const SnowFallCanvas = ({ intensity = 50, width, height }: { intensity: number, width: number, height: number }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        let flakes: any[] = [];
+        const numFlakes = intensity * 5; // MORE NOTICEABLE
+
+        for (let i = 0; i < numFlakes; i++) {
+            flakes.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                r: Math.random() * 4 + 1,
+                d: Math.random() * numFlakes // density
+            });
+        }
+        
+        let angle = 0;
+        let animationFrameId: number;
+
+        const draw = () => {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.beginPath();
+            
+            for (let i = 0; i < numFlakes; i++) {
+                const f = flakes[i];
+                ctx.moveTo(f.x, f.y);
+                ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2, true);
+            }
+            ctx.fill();
+            move();
+            animationFrameId = requestAnimationFrame(draw);
+        }
+
+        const move = () => {
+            angle += 0.01;
+            for (let i = 0; i < numFlakes; i++) {
+                const f = flakes[i];
+                f.y += Math.pow(f.d, 2) + 1;
+                f.x += Math.sin(angle) * 2;
+                if (f.y > height) {
+                    flakes[i] = { x: Math.random() * width, y: 0, r: f.r, d: f.d };
+                }
+            }
+        }
+        
+        draw();
+        
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [intensity, width, height]);
+
+    return <canvas ref={canvasRef} width={width} height={height} className="absolute inset-0 z-10 pointer-events-none" />;
+};
+
 const VillageAR = ({ onClose }: { onClose: () => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  
+  const [intensity, setIntensity] = useState(50);
+
   useEffect(() => {
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' },
+            audio: false 
+        });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
@@ -343,14 +447,28 @@ const VillageAR = ({ onClose }: { onClose: () => void }) => {
       stream?.getTracks().forEach(track => track.stop());
     };
   }, []);
-
+  
   return (
     <div className="fixed inset-0 z-[100] bg-black">
       <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 pointer-events-none bg-black/10" />
-      <SnowFall className="absolute inset-0 z-[120]" />
-      <Button onClick={onClose} className="absolute top-4 right-4 z-[130] bg-red-600 text-white shadow-lg border-2 border-white">Close AR</Button>
-      <div className="absolute bottom-10 left-0 w-full text-center text-white font-bold bg-black/50 p-2 pointer-events-none backdrop-blur-sm z-[130]">Look around for hidden snow!</div>
+      <SnowFallCanvas intensity={intensity} width={window.innerWidth} height={window.innerHeight} />
+
+      {/* Controls */}
+      <div className="absolute top-4 left-4 right-4 z-[130] flex justify-between items-start">
+           <div className="bg-black/50 p-4 rounded-xl backdrop-blur-md">
+               <label className="text-white text-sm font-bold block mb-2">Snow Intensity</label>
+               <input 
+                 type="range" 
+                 min="10" 
+                 max="200" 
+                 value={intensity} 
+                 onChange={(e) => setIntensity(Number(e.target.value))} 
+                 className="w-48 h-4 accent-white"
+               />
+           </div>
+           <Button onClick={onClose} className="bg-red-600 text-white shadow-lg border-2 border-white">Close</Button>
+      </div>
     </div>
   );
 };
@@ -366,39 +484,24 @@ const SurprisePopup = ({ type, onClose }: { type: 'VILLAGE' | 'HOUSE', onClose: 
   </div>
 );
 
-const InstallModal = ({ onClose }: { onClose: () => void }) => {
-  const [os, setOs] = useState<'iOS'|'Android'|null>(null);
+const InstallModal = ({ onClose, lang }: { onClose: () => void, lang: 'en'|'es' }) => {
+  const t = UI[lang].install;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
-      <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl relative" onClick={e=>e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 p-6 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
+      <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl relative mb-10 md:mb-0" onClick={e=>e.stopPropagation()}>
          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold">X</button>
-         <h3 className="text-2xl font-sweater text-red-700 mb-4 text-center">Add App to Home Screen</h3>
-         {!os ? (
-             <div className="space-y-3">
-                 <p className="text-center text-gray-600 mb-4">Select your device for instructions:</p>
-                 <Button onClick={()=>setOs('iOS')} className="w-full bg-gray-900 text-white hover:bg-black shadow-md font-bold py-4 rounded-xl border border-gray-700">Apple (iOS)</Button>
-                 <Button onClick={()=>setOs('Android')} className="w-full bg-gray-900 text-white hover:bg-black shadow-md font-bold py-4 rounded-xl border border-gray-700">Android</Button>
-             </div>
-         ) : (
-             <div className="space-y-4 text-left">
-                 <button onClick={()=>setOs(null)} className="text-xs text-blue-500 font-bold mb-2">← Back</button>
-                 {os === 'iOS' ? (
-                     <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-700">
-                         <li>Tap the <strong>Share</strong> button (square with arrow) at the bottom/top of Safari.</li>
-                         <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
-                         <li>Tap <strong>Add</strong> in the top right corner.</li>
-                     </ol>
-                 ) : (
-                     <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-700">
-                         <li>Tap the <strong>three dots</strong> menu icon in Chrome (top right).</li>
-                         <li>Select <strong>"Add to Home screen"</strong> or "Install App".</li>
-                         <li>Confirm by tapping <strong>Add</strong>.</li>
-                     </ol>
-                 )}
-                 <Button onClick={onClose} className="w-full bg-red-600 text-white mt-4">Got it!</Button>
-             </div>
-         )}
+         <h3 className="text-2xl font-sweater text-red-700 mb-4 text-center">{t.title}</h3>
+         <div className="space-y-4 text-left">
+             <p className="text-sm font-bold text-gray-800">{t.select}</p>
+             <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-700">
+                 {t.iosSteps.map((s:string,i:number)=><li key={i} dangerouslySetInnerHTML={{__html:s.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')}}/>)}
+             </ol>
+             <Button onClick={onClose} className="w-full bg-red-600 text-white mt-4">{t.gotIt}</Button>
+         </div>
+         <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 flex flex-col items-center animate-bounce">
+            <div className="w-0 h-0 border-l-[15px] border-l-transparent border-t-[20px] border-t-white border-r-[15px] border-r-transparent drop-shadow-lg"></div>
+         </div>
       </div>
     </div>
   );
@@ -427,16 +530,16 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 max-w-md mx-auto bg-white">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 max-w-lg mx-auto bg-white">
        <div className="absolute top-4 right-4 flex gap-2">
-            <button onClick={()=>setLang('en')} className={`px-3 py-1 rounded-full font-bold text-xs transition-colors ${lang==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
-            <button onClick={()=>setLang('es')} className={`px-3 py-1 rounded-full font-bold text-xs transition-colors ${lang==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
+            <button onClick={()=>setLang('en')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors ${lang==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
+            <button onClick={()=>setLang('es')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors ${lang==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
       </div>
-      <div className="flex items-center justify-center gap-4 mb-4">
-          <img src={LOGO_URL} className="w-24 h-24 object-contain"/>
-          <div className="text-left">
-              <h1 className="text-4xl font-sweater font-bold text-red-700 leading-none drop-shadow-sm">MERRY<br/>CHRISTMAS</h1>
-              <p className="text-[#0B3D2E] font-bold text-[10px] tracking-widest mt-1">FRUTH BE TOLD APP</p>
+      <div className="w-full flex flex-row items-center justify-center gap-4 mb-8 mt-12 px-4">
+          <img src={LOGO_URL} className="w-32 h-32 object-contain"/>
+          <div className="text-left flex-1">
+              <h1 className="text-4xl md:text-6xl font-sweater font-bold text-red-700 leading-none drop-shadow-sm">MERRY<br/>CHRISTMAS</h1>
+              <p className="text-[#0B3D2E] font-bold text-xs tracking-[0.2em] mt-2">FRUTH BE TOLD APP</p>
           </div>
       </div>
       <Card className="w-full space-y-6 border border-gray-100 shadow-xl bg-white p-8 rounded-3xl">
@@ -444,7 +547,7 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
             <label className="block font-bold text-[#0B3D2E] text-xs uppercase mb-2 tracking-wide">{lang === 'en' ? 'First and Last Name' : 'Nombre y Apellido'}</label>
             <input value={name} onChange={e=>setName(e.target.value.replace(/\b\w/g, c=>c.toUpperCase()))} placeholder={lang === 'en' ? "Santa Claus" : "Papá Noel"} className="w-full p-4 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold bg-gray-50 text-gray-900 focus:border-[#0B3D2E] outline-none transition-colors placeholder:text-gray-300"/>
         </div>
-        <label className="block w-40 h-40 mx-auto bg-gray-50 rounded-full flex items-center justify-center border-4 border-dashed border-[#0B3D2E] cursor-pointer overflow-hidden relative hover:bg-green-50 transition-colors group">
+        <label className="block w-64 h-64 mx-auto bg-gray-50 rounded-full flex items-center justify-center border-4 border-dashed border-[#0B3D2E] cursor-pointer overflow-hidden relative hover:bg-green-50 transition-colors group">
             {prev ? <img src={prev} className="w-full h-full object-cover"/> : <div className="flex flex-col items-center text-[#0B3D2E] group-hover:scale-110 transition-transform"><IconCamera className="w-10 h-10"/><span className="text-[10px] font-bold uppercase mt-1">{lang==='en'?'Upload Photo':'Subir Foto'}</span></div>}
             <input type="file" onChange={e=>{if(e.target.files?.[0]){setPhoto(e.target.files[0]);setPrev(URL.createObjectURL(e.target.files[0]))}}} className="hidden" accept="image/*"/>
         </label>
@@ -460,9 +563,10 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
   );
 };
 
-const GameCard = ({ g, user, users, join, win, leave }: any) => {
+const GameCard = ({ g, user, users, join, win, leave, lang }: any) => {
   const [c1, c2] = g.signups.slice(0,2); const [pid, setPid] = useState(''); const [showP, setShowP] = useState(false); const [hist, setHist] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const t = UI[lang].games;
   
   const updateScore = async (sid: string, delta: number) => {
       const cur = g.scores?.[sid] || 0;
@@ -478,11 +582,11 @@ const GameCard = ({ g, user, users, join, win, leave }: any) => {
                <span className="bg-white/20 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">i</span>
            </div>
            <div className="flex gap-2">
-               <button onClick={(e)=>{e.stopPropagation();setHist(!hist)}} className="text-[10px] bg-red-900/50 px-2 py-1 rounded hover:bg-red-900">📜 History</button>
-               <span className="text-[10px] bg-red-900/50 px-2 py-1 rounded">{g.signups.length} Teams</span>
+               <button onClick={(e)=>{e.stopPropagation();setHist(!hist)}} className="text-[10px] bg-red-900/50 px-2 py-1 rounded hover:bg-red-900">📜 {t.history}</button>
+               <span className="text-[10px] bg-red-900/50 px-2 py-1 rounded">{g.signups.length} {t.teams}</span>
            </div>
        </div>
-       {hist ? <div className="p-4 bg-red-50" onClick={e=>e.stopPropagation()}><h4 className="font-bold text-center mb-2 text-red-800">History</h4>{g.results.slice().reverse().map((r:any)=><div key={r.id} className="text-xs border-b border-red-200 py-2 flex justify-between"><span className="text-green-700 font-bold">{r.winnerLabel}</span> <span className="text-gray-500">def.</span> <span className="text-red-700">{r.loserLabel}</span></div>)}<Button onClick={()=>setHist(false)} className="w-full mt-4 text-xs bg-red-200 text-red-800">Close</Button></div> : 
+       {hist ? <div className="p-4 bg-red-50" onClick={e=>e.stopPropagation()}><h4 className="font-bold text-center mb-2 text-red-800">{t.history}</h4>{g.results.slice().reverse().map((r:any)=><div key={r.id} className="text-xs border-b border-red-200 py-2 flex justify-between"><span className="text-green-700 font-bold">{r.winnerLabel}</span> <span className="text-gray-500">def.</span> <span className="text-red-700">{r.loserLabel}</span></div>)}<Button onClick={()=>setHist(false)} className="w-full mt-4 text-xs bg-red-200 text-red-800">{t.close}</Button></div> : 
        <div onClick={e=>e.stopPropagation()}>
        <div className="p-4 bg-red-50 flex gap-2 items-center relative">
             {[c1,c2].map((p:any,i:number)=>{
@@ -503,10 +607,10 @@ const GameCard = ({ g, user, users, join, win, leave }: any) => {
                                         <button onClick={()=>updateScore(p.id, 1)} className="bg-gray-100 text-green-600 font-black w-10 h-10 rounded-full flex items-center justify-center text-2xl shadow-sm border border-gray-200 active:bg-gray-200 transition-colors pb-1">+</button>
                                     </div>
                                 )}
-                                {opp && <Button onClick={()=>win(g.id,p,opp)} className="w-full bg-red-600 hover:bg-green-600 text-white text-[10px] py-2 font-bold uppercase tracking-wider">Win</Button>}
-                                <button onClick={()=>leave(g.id,p.id)} className="absolute top-1 left-2 text-red-400 text-xs font-bold hover:text-red-600">Leave</button>
+                                {opp && <Button onClick={()=>win(g.id,p,opp)} className="w-full bg-red-600 hover:bg-green-600 text-white text-[10px] py-2 font-bold uppercase tracking-wider">{t.winner}</Button>}
+                                <button onClick={()=>leave(g.id,p.id)} className="absolute top-1 left-2 text-red-400 text-xs font-bold hover:text-red-600">{t.leave}</button>
                             </>
-                        ) : <span className="text-sm text-gray-400 mt-10 font-medium">Waiting...</span>}
+                        ) : <span className="text-sm text-gray-400 mt-10 font-medium">{t.waiting}</span>}
                     </div>
                 )
             })}
@@ -516,26 +620,26 @@ const GameCard = ({ g, user, users, join, win, leave }: any) => {
             {showP ? (
                 <div className="flex gap-2">
                     <select className="flex-1 text-sm p-2 border-2 border-gray-200 bg-white text-gray-900 rounded-lg outline-none focus:border-red-500" value={pid} onChange={e=>setPid(e.target.value)}>
-                        <option value="">Select Partner...</option>
+                        <option value="">{t.selectPartner}</option>
                         {users.filter((u:any)=>u.id!==user.id).map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                     <button onClick={()=>setShowP(false)} className="text-red-500 font-bold px-2">X</button>
                 </div>
-            ) : <Button variant="outline" onClick={()=>setShowP(true)} className="text-xs py-2 text-gray-500 border-dashed border-gray-300 hover:bg-gray-50 hover:text-gray-700">+ Add Partner</Button>}
-            <button onClick={()=>{join(g.id,pid||null);setPid('');setShowP(false)}} className="w-full bg-blue-600 text-white rounded-xl px-6 py-3 shadow-lg hover:bg-blue-700 uppercase tracking-wide font-bold text-xs transition-transform active:scale-95">Sign Up</button>
+            ) : <Button variant="outline" onClick={()=>setShowP(true)} className="text-xs py-2 text-gray-500 border-dashed border-gray-300 hover:bg-gray-50 hover:text-gray-700">{t.addPartner}</Button>}
+            <button onClick={()=>{join(g.id,pid||null);setPid('');setShowP(false)}} className="w-full bg-blue-600 text-white rounded-xl px-6 py-3 shadow-lg hover:bg-blue-700 uppercase tracking-wide font-bold text-xs transition-transform active:scale-95">{t.signup}</button>
        </div>
-       {g.signups.slice(2).map((s:any,i:number)=><div key={s.id} className="flex justify-between text-xs p-2 bg-gray-50 border-t border-gray-100 mx-0 text-gray-600"><div className="flex items-center gap-2"><span className="font-bold text-gray-400 w-4">{i+1}</span><span>{s.label}</span></div>{s.players.includes(user.id)&&<button onClick={()=>leave(g.id,s.id)} className="text-red-500 font-bold hover:underline">Leave</button>}</div>)}
+       {g.signups.slice(2).map((s:any,i:number)=><div key={s.id} className="flex justify-between text-xs p-2 bg-gray-50 border-t border-gray-100 mx-0 text-gray-600"><div className="flex items-center gap-2"><span className="font-bold text-gray-400 w-4">{i+1}</span><span>{s.label}</span></div>{s.players.includes(user.id)&&<button onClick={()=>leave(g.id,s.id)} className="text-red-500 font-bold hover:underline">{t.leave}</button>}</div>)}
        </div>}
     </Card>
     {showRules && (
         <div className="fixed inset-0 z-[150] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm animate-in fade-in" onClick={()=>setShowRules(false)}>
             <div className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
-                <h3 className="text-xl font-bold font-sweater text-red-700 mb-4">{g.title} Rules</h3>
+                <h3 className="text-xl font-bold font-sweater text-red-700 mb-4">{g.title} {t.rules}</h3>
                 <div className="w-full h-48 bg-gray-100 rounded-xl mb-4 overflow-hidden border-2 border-gray-200">
                     <img src={GAME_IMAGES[g.title]} className="w-full h-full object-contain bg-white" alt="Rules" />
                 </div>
-                <p className="text-gray-700 leading-relaxed text-sm mb-6 whitespace-pre-line">{GAME_RULES[g.title] || "Have fun and play fair!"}</p>
-                <Button onClick={()=>setShowRules(false)} className="w-full bg-gray-900 text-white">Got it</Button>
+                <p className="text-gray-700 leading-relaxed text-sm mb-6 whitespace-pre-line">{GAME_RULES[g.title][lang] || "Have fun and play fair!"}</p>
+                <Button onClick={()=>setShowRules(false)} className="w-full bg-gray-900 text-white">{UI[lang].install.gotIt}</Button>
             </div>
         </div>
     )}
@@ -559,8 +663,9 @@ const GamesScreen = ({ games, user, users }: any) => {
     });
   };
   const leave = async (gid:string, sid:string) => updateDoc(doc(db,'games',gid), { signups:games.find((x:any)=>x.id===gid).signups.filter((s:any)=>s.id!==sid) });
+  const lang = user.language || 'en';
   return (
-    <div className="space-y-6 pb-24 pt-4">{games.map((g:any)=><GameCard key={g.id} g={g} user={user} users={users} join={join} win={win} leave={leave}/>)}</div>
+    <div className="space-y-6 pb-24 pt-4">{games.map((g:any)=><GameCard key={g.id} g={g} user={user} users={users} join={join} win={win} leave={leave} lang={lang}/>)}</div>
   );
 };
 
@@ -701,21 +806,26 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
   return (
     <div className="p-6 space-y-5 pt-10 relative">
       {!readOnly && <div className="absolute top-0 right-6 flex gap-2 z-10">
-        <button onClick={()=>changeLang('en')} className={`px-4 py-2 rounded-full font-bold text-xs transition-colors shadow-sm ${user.language==='en'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
-        <button onClick={()=>changeLang('es')} className={`px-4 py-2 rounded-full font-bold text-xs transition-colors shadow-sm ${user.language==='es'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
+        <button onClick={()=>changeLang('en')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors shadow-sm ${user.language==='en'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
+        <button onClick={()=>changeLang('es')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors shadow-sm ${user.language==='es'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
       </div>}
 
       <Card className="p-6 relative bg-white/95 backdrop-blur shadow-xl border-t-4 border-red-600 mt-6">
           <div className="flex flex-col items-center -mt-16 mb-4 relative">
-               <div className="relative">
-                   <img src={preview} className="w-36 h-36 rounded-full border-4 border-white shadow-lg object-cover bg-gray-200" />
-                   {uploading && <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"/></div>}
-                   {winCount > 0 && <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-black shadow border border-white flex items-center gap-1"><IconTrophy className="w-3 h-3"/> {winCount}</div>}
+               <div className="relative inline-block">
+                   <img src={preview} className="w-72 h-72 rounded-full border-8 border-white shadow-2xl object-cover bg-gray-200" />
+                   {uploading && <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center"><div className="animate-spin h-10 w-10 border-4 border-white border-t-transparent rounded-full"/></div>}
+                   {winCount > 0 && <div className="absolute -bottom-2 -left-2 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-black shadow border border-white flex items-center gap-1"><IconTrophy className="w-4 h-4"/> {winCount}</div>}
+                   
+                   {!readOnly && (
+                       <label className="absolute bottom-4 right-4 bg-[#0B3D2E] text-white p-3 rounded-full shadow-lg cursor-pointer hover:bg-green-900 border-4 border-white active:scale-95 transition-transform">
+                           <IconCamera className="w-8 h-8" />
+                           <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange}/>
+                       </label>
+                   )}
                </div>
-               {!readOnly && <label className="text-xs text-blue-600 font-bold mt-1 cursor-pointer hover:underline">
-                 Change Photo <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange}/>
-               </label>}
-               <Input value={name} onChange={handleNameChange} disabled={readOnly} className={`text-center font-bold text-xl mt-2 border-none bg-transparent p-1 text-gray-900 ${!readOnly && 'focus:bg-gray-50 focus:ring-1 focus:ring-gray-200'}`}/>
+
+               <Input value={name} onChange={handleNameChange} disabled={readOnly} className={`text-center font-bold text-3xl mt-4 border-none bg-transparent p-1 text-gray-900 ${!readOnly && 'focus:bg-gray-50 focus:ring-1 focus:ring-gray-200'}`}/>
           </div>
 
           <div className="space-y-4">
@@ -798,6 +908,10 @@ export const App = () => {
   const [showInstall, setShowInstall] = useState(false);
   const prevProg = useRef<any>({});
   
+  // PWA Install Prompt State
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  
   // Lightbox State
   const [lightboxUrl, setLightboxUrl] = useState<string|null>(null);
 
@@ -815,9 +929,7 @@ export const App = () => {
 
   // Facts Logic: Shuffle once on mount, then cycle through
   useEffect(() => {
-      // Create indices [0, 1, ... N]
       const indices = Array.from({ length: CHRISTMAS_FACTS.en.length }, (_, i) => i);
-      // Fisher-Yates Shuffle
       for (let i = indices.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [indices[i], indices[j]] = [indices[j], indices[i]];
@@ -826,10 +938,42 @@ export const App = () => {
       
       const interval = setInterval(() => {
           setFactIndex(prev => (prev + 1) % indices.length);
-      }, 10000); // Change fact every 10 seconds
+      }, 10000); 
 
       return () => clearInterval(interval);
   }, []);
+  
+  // PWA Installation Logic
+  useEffect(() => {
+      // 1. Check if already installed
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+          setIsStandalone(true);
+      }
+
+      // 2. Listen for 'beforeinstallprompt' (Android)
+      const handler = (e: any) => {
+          e.preventDefault();
+          setInstallPrompt(e);
+      };
+      window.addEventListener('beforeinstallprompt', handler);
+      return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = () => {
+      // If Android prompt is available, trigger it
+      if (installPrompt) {
+          installPrompt.prompt();
+          installPrompt.userChoice.then((choiceResult: any) => {
+              if (choiceResult.outcome === 'accepted') {
+                  setInstallPrompt(null);
+                  setIsStandalone(true);
+              }
+          });
+      } else {
+          // Otherwise show the manual instructions (mainly for iOS)
+          setShowInstall(true);
+      }
+  };
   
   const nextQuestion = () => {
       const rawQ = TRADITIONAL_QUIZ[Math.floor(Math.random() * TRADITIONAL_QUIZ.length)];
@@ -915,6 +1059,12 @@ export const App = () => {
     const done = items.filter((i:any)=>user.huntProgress?.[i.id]).length;
     return {count:done, total:items.length, pct:Math.round((done/items.length)*100)};
   };
+  
+  const profileAction = (
+      <button onClick={()=>setView('PROFILE')} className="ml-2">
+          <img src={user.photo} className="w-16 h-16 rounded-full border-4 border-[#0B3D2E] object-cover shadow-sm"/>
+      </button>
+  );
 
   const TopBar = () => {
       let title: React.ReactNode = "";
@@ -922,13 +1072,18 @@ export const App = () => {
       let sub: React.ReactNode = null;
 
       if(view === 'HOME') {
-          title = <div onClick={()=>setView('PROFILE')} className="flex gap-3 items-center"><img src={user.photo} className="w-10 h-10 rounded-full object-cover border-2 border-red-500"/><span className="font-bold text-lg text-red-700 font-sweater">Hello, {user.name.split(' ')[0]}</span></div>;
-          action = <button onClick={()=>setView('ADMIN')}><IconLock className="w-6 h-6 text-gray-400"/></button>;
-      } else if (view === 'GAMES') title = "Games";
+          title = <div onClick={()=>setView('PROFILE')} className="flex gap-3 items-center"><img src={user.photo} className="w-16 h-16 rounded-full object-cover border-4 border-[#0B3D2E]"/><span className="font-bold text-4xl text-red-700 font-sweater">{t.home.hello}, {user.name.split(' ')[0]}</span></div>;
+          action = <button onClick={()=>setView('ADMIN')}><IconLock className="w-8 h-8 text-gray-400"/></button>;
+      } else if (view === 'GAMES') {
+          title = t.games.title;
+          action = profileAction;
+      }
       else if (view === 'HUNT_VILLAGE' || view === 'HUNT_HOUSE') {
-          title = view === 'HUNT_VILLAGE' ? "Village Hunt" : "House Hunt";
+          title = view === 'HUNT_VILLAGE' ? t.profile.villageHunt : t.profile.houseHunt;
           const prog = getMyProg(view === 'HUNT_VILLAGE' ? 'VILLAGE' : 'HOUSE');
-          if(view === 'HUNT_VILLAGE') action = <Button onClick={()=>setShowAR(true)} className="text-[10px] px-3 py-1 h-auto bg-red-700 text-white shadow-sm font-bold uppercase tracking-wider">AR View</Button>;
+          const arBtn = view === 'HUNT_VILLAGE' ? <Button onClick={()=>setShowAR(true)} className="text-[10px] px-3 py-1 h-auto bg-red-700 text-white shadow-sm font-bold uppercase tracking-wider flex items-center gap-1"><IconSnow className="w-4 h-4"/> AR View</Button> : null;
+          action = <div className="flex items-center gap-1">{arBtn}{profileAction}</div>;
+          
           sub = (
             <div className="mt-1">
                 <div className="flex justify-between items-end mb-1 text-xs font-bold text-green-800">
@@ -939,8 +1094,8 @@ export const App = () => {
             </div>
           );
       }
-      else if (view === 'VOTING') title = t.vote.title;
-      else if (view === 'PHOTOS') title = "Photos";
+      else if (view === 'VOTING') { title = t.vote.title; action = profileAction; }
+      else if (view === 'PHOTOS') { title = t.nav.PHOTOS; action = profileAction; }
       else if (view === 'ADMIN') title = t.nav.ADMIN;
       else if (view === 'PROFILE') title = t.nav.PROFILE;
       
@@ -955,7 +1110,7 @@ export const App = () => {
       <div className="bg-white/90 w-full z-50 relative" style={{height:'env(safe-area-inset-top)'}}/>
       {surprise && <SurprisePopup type={surprise} onClose={()=>setSurprise(null)}/>}
       {showAR && <VillageAR onClose={()=>setShowAR(false)} />}
-      {showInstall && <InstallModal onClose={()=>setShowInstall(false)} />}
+      {showInstall && <InstallModal onClose={()=>setShowInstall(false)} lang={userLang} />}
       
       {/* Lightbox Modal */}
       {lightboxUrl && (
@@ -972,7 +1127,7 @@ export const App = () => {
         
         {view==='HOME'&&<div className="flex-1 flex flex-col space-y-6">
            <div className="text-center pt-2">
-               <h1 className="text-4xl font-bold text-red-700 font-sweater drop-shadow-md text-white md:text-red-700">{t.home.title}</h1>
+               <h1 className="text-6xl font-bold text-red-700 font-sweater drop-shadow-md text-white md:text-red-700 uppercase leading-none">{t.home.title}</h1>
                <ul className="space-y-3 font-sweater text-2xl mt-4 text-center list-none bg-white/60 p-4 rounded-xl backdrop-blur-sm text-gray-800">
                    {t.home.steps.map((s:string,i:number)=><li key={i}>{s}</li>)}
                </ul>
@@ -987,9 +1142,9 @@ export const App = () => {
                <div className="flex-1 h-10">
                    <Input value={note} onChange={e=>setNote(e.target.value)} placeholder={t.home.comment} className="h-full flex items-center" inputClassName="py-2 text-base h-full"/>
                </div>
-               <Button onClick={async()=>{if(!note)return;await updateDoc(doc(db,'users',user.id),{hostComment:user.hostComment?user.hostComment+'\n'+note:note});setNote('');alert("Sent!")}} className="h-10 bg-red-600 text-white w-24 rounded-xl flex items-center justify-center">Send</Button>
+               <Button onClick={async()=>{if(!note)return;await updateDoc(doc(db,'users',user.id),{hostComment:user.hostComment?user.hostComment+'\n'+note:note});setNote('');alert(userLang === 'en' ? "Sent!" : "¡Enviado!")}} className="h-10 bg-red-600 text-white w-24 rounded-xl flex items-center justify-center">{t.home.send}</Button>
            </div>
-           <Button onClick={() => setShowInstall(true)} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg mt-4 hover:bg-black border border-gray-700">Add to Home Screen</Button>
+           {!isStandalone && <Button onClick={handleInstallClick} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg mt-4 hover:bg-black border border-gray-700">{t.install.title}</Button>}
         </div>}
         
         {view==='GAMES'&&<GamesScreen games={games} user={user} users={users} />}
@@ -1012,7 +1167,7 @@ export const App = () => {
                                     type="text" 
                                     value={user.huntProgress[h.id] || ''} 
                                     onChange={(e)=>updateDoc(doc(db,'users',user.id),{[`huntProgress.${h.id}`]:e.target.value})}
-                                    placeholder="Type answer..."
+                                    placeholder={userLang === 'en' ? "Type answer..." : "Escribe respuesta..."}
                                     className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-red-500 outline-none bg-white text-gray-900 placeholder:text-gray-500"
                                   />
                               </div>
@@ -1081,7 +1236,7 @@ export const App = () => {
         
         {view==='ADMIN'&&<AdminDashboard users={users} polls={polls} hunts={hunts} games={games} onClose={()=>setView('HOME')}/>}
         {view==='PROFILE'&&<ProfileScreen user={user} users={users} games={games} hunts={hunts} onClose={()=>setView('HOME')}/>}
-        {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? 'Zipping Photos...' : 'Download All'}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full"/></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,f);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
+        {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? (userLang==='en'?'Zipping...':'Comprimiendo...') : 'Download All'}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full"/></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,f);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
       </main>
       <nav className="bg-white/90 backdrop-blur-md border-t p-2 pb-6 grid grid-cols-6 gap-1 text-[10px] font-bold text-gray-500 fixed bottom-0 w-full max-w-3xl z-[60]">
         {[ ['HOME',IconHome],['HUNT_VILLAGE',IconVillage],['HUNT_HOUSE',IconHouse],['VOTING',IconVote],['GAMES',IconGamepad],['PHOTOS',IconCamera] ].map(([v,I]:any)=><button key={v} onClick={()=>setView(v)} className={`flex flex-col items-center ${view===v?'text-green-800':''}`}><I className={`w-8 h-8 ${view===v?'stroke-2':'stroke-1'}`}/></button>)}
