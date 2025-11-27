@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, ViewState, HuntItem, Poll, Photo, Game } from './types';
 import { IconHome, IconVillage, IconHouse, IconVote, IconCamera, IconLock, IconUpload, IconDownload, IconPlus, IconGamepad, IconTrophy } from './components/Icons';
@@ -7,7 +6,6 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, increment, deleteDoc, addDoc, query, orderBy, writeBatch, getDoc, where, getDocs } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import * as firebaseStorage from 'firebase/storage';
-import * as THREE from 'three';
 import JSZip from 'jszip';
 
 const firebaseConfig = { apiKey: "AIzaSyCJ_qmMSCWyFgLAEWy9YDCGAb5m2YUwV28", authDomain: "christmas-test---fruthbetold.firebaseapp.com", projectId: "christmas-test---fruthbetold", storageBucket: "christmas-test---fruthbetold.firebasestorage.app", messagingSenderId: "965407401986", appId: "1:965407401986:web:29473e6de9aa3626de1f1b", measurementId: "G-L8VSZWKPLG" };
@@ -152,7 +150,6 @@ const INITIAL_HUNTS: HuntItem[] = [
   
   // House Questions
   {id:'hq1',text:'How many Steamboat Willies are there?',textEs:'¿Cuántos Barco de Vapor Willie hay?',type:'TEXT',huntType:'HOUSE',category:'Questions',categoryEs:'Preguntas'},
-  {id:'hq2',text:'How many decorated Christmas trees are there?',textEs:'¿Cuántos árboles de Navidad decorados hay?',type:'TEXT',huntType:'HOUSE',category:'Questions',categoryEs:'Preguntas'},
   {id:'hq3',text:'Who’s house is this years commemorative ornament resemble?',textEs:'¿A quién se parece el adorno conmemorativo de este año?',type:'TEXT',huntType:'HOUSE',category:'Questions',categoryEs:'Preguntas'},
 
   // Village Items
@@ -219,16 +216,6 @@ const INITIAL_HUNTS: HuntItem[] = [
   {id:'v56',text:'Black Panther',textEs:'Pantera Negra',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
   {id:'v57',text:'Rhino',textEs:'Rinoceronte',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
   {id:'v58',text:'Camel',textEs:'Camello',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v59',text:'Penguin',textEs:'Pingüino',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v60',text:'Lion',textEs:'León',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v61',text:'Tiger',textEs:'Tigre',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v62',text:'Elephant',textEs:'Elefante',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v63',text:'Giraffe',textEs:'Jirafa',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v64',text:'Zebra',textEs:'Cebra',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v65',text:'Hippo',textEs:'Hipopótamo',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v66',text:'Kangaroo',textEs:'Canguro',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v67',text:'Koala (Village)',textEs:'Koala (Villa)',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
-  {id:'v68',text:'Panda (Village)',textEs:'Panda (Villa)',type:'CHECKBOX',huntType:'VILLAGE',category:'ANIMALS',categoryEs:'ANIMALES'},
 
   // Questions - Village
   {id:'q1',text:'What’s the name of the village/city?',textEs:'¿Cómo se llama la villa/ciudad?',type:'TEXT',huntType:'VILLAGE',category:'Questions',categoryEs:'Preguntas'},
@@ -242,7 +229,7 @@ const INITIAL_POLLS: Poll[] = [
   {id:'p1',question:'The "Die Hard" Dilemma: Is Die Hard actually a Christmas movie?', questionEs:'El dilema "Die Hard": ¿Es realmente una película navideña?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Yes, 100%. It happens on Christmas Eve!', textEs:'Sí, 100%. ¡Ocurre en Nochebuena!'},{id:'b',text:'No, it is an action movie that happens to take place in December.', textEs:'No, es una película de acción que ocurre en diciembre.'},{id:'c',text:'It’s a movie I watch at Christmas, but not a "Christmas Movie."', textEs:'Es una película que veo en Navidad, pero no "Navideña".'}]},
   {id:'p2',question:'The Music Timeline: When is it socially acceptable to start playing Christmas music?', questionEs:'Música: ¿Cuándo es aceptable empezar a poner música navideña?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'As soon as Halloween ends (Nov 1st).', textEs:'En cuanto termina Halloween (1 Nov).'},{id:'b',text:'Not until after Thanksgiving.', textEs:'No hasta después de Acción de Gracias.'},{id:'c',text:'December 1st strictly.', textEs:'El 1 de diciembre estrictamente.'},{id:'d',text:'Only the week of Christmas.', textEs:'Solo la semana de Navidad.'}]},
   {id:'p3',question:'The Great Tree Debate: What is the superior Christmas Tree situation?', questionEs:'El debate del árbol: ¿Cuál es la mejor situación para el árbol?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Real tree (Need the smell!).', textEs:'Árbol real (¡Necesito el olor!).'},{id:'b',text:'Árbol artificial (Need the convenience!).', textEs:'Árbol artificial (¡Conveniencia!).'},{id:'c',text:'A small tabletop plant/Charlie Brown tree.', textEs:'Una planta pequeña de mesa.'},{id:'d',text:'No tree for me.', textEs:'Sin árbol para mí.'}]},
-  {id:'p4',question:'The Eggnog Stance: What are your feelings on Eggnog?', questionEs:'El ponche de huevo: ¿Qué opinas?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'I love it!', textEs:'¡Me encanta!'},{id:'b',text:'Only if it\'s spiked with something strong.', textEs:'Solo si tiene alcohol fuerte.'},{id:'c',text:'Absolutely disgusting.', textEs:'Absolutamente asqueroso.'},{id:'d',text:'I’ve actually never tried it.', textEs:'Nunca lo he probado.'}]},
+  {id:'p4',question:'The Eggnog Stance: What are your feelings on Eggnog?', questionEs:'El ponche de huevo: ¿Qué opinas?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'I love it!', textEs:'¡Me encanta!'},{id:'b',text:'Only if it\'s spiked with something strong.', textEs:'Solo si tiene alcohol fuerte.'},{id:'c',text:'Absolutamente asqueroso.', textEs:'Absolutamente asqueroso.'},{id:'d',text:'I’ve actually never tried it.', textEs:'Nunca lo he probado.'}]},
   {id:'p5',question:'Cookie Contenders: If you could only eat one holiday treat for the rest of your life, what would it be?', questionEs:'Galletas: ¿Si solo pudieras comer un dulce navideño por el resto de tu vida?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Gingerbread Men.', textEs:'Hombres de jengibre.'},{id:'b',text:'Frosted Sugar Cookies.', textEs:'Galletas de azúcar glaseadas.'},{id:'c',text:'Peppermint Bark.', textEs:'Corteza de menta.'},{id:'d',text:'Fudge.', textEs:'Dulce de azúcar.'}]},
   {id:'p6',question:'The Dinner Main Event: What is the centerpiece of the Christmas Dinner?', questionEs:'La cena: ¿Cuál es el plato principal?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Ham.', textEs:'Jamón.'},{id:'b',text:'Turkey (Round 2 after Thanksgiving).', textEs:'Pavo (Ronda 2).'},{id:'c',text:'Roast Beef / Prime Rib.', textEs:'Rosbif / Costilla.'},{id:'d',text:'Tamales / Lasagna / Something non-traditional.', textEs:'Tamales / Lasaña / Algo no tradicional.'}]},
   {id:'p7',question:'The Opening Ceremony: When does your family open the "Main" presents?', questionEs:'Los regalos: ¿Cuándo abre tu familia los regalos "principales"?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Christmas Eve.', textEs:'Nochebuena.'},{id:'b',text:'Christmas Morning.', textEs:'Mañana de Navidad.'},{id:'c',text:'We open one on Eve, the rest in the morning.', textEs:'Uno en Nochebuena, el resto en la mañana.'},{id:'d',text:'Whenever everyone finally wakes up/arrives.', textEs:'Cuando todos despiertan/llegan.'}]},
@@ -312,7 +299,7 @@ const Header = ({ title, rightAction, subHeader }: { title: React.ReactNode, rig
   </div>
 );
 
-const SnowFall = () => {
+const SnowFall = ({ className = "fixed inset-0 z-10" }: { className?: string }) => {
   const [flakes] = useState(() => Array.from({length: 30}).map((_, i) => ({
     id: i,
     left: Math.random() * 100,
@@ -322,7 +309,7 @@ const SnowFall = () => {
   })));
   
   return (
-    <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+    <div className={`${className} pointer-events-none overflow-hidden`}>
       {flakes.map(f => (
         <div key={f.id} className="snowflake animate-snow" style={{
           left: `${f.left}%`,
@@ -336,84 +323,34 @@ const SnowFall = () => {
 };
 
 const VillageAR = ({ onClose }: { onClose: () => void }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
   useEffect(() => {
-    if (!containerRef.current) return;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    containerRef.current.appendChild(renderer.domElement);
-    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-    scene.add(light);
-    const people: THREE.Group[] = [];
-    const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
-    for(let i=0; i<5; i++) {
-        const group = new THREE.Group();
-        const geometry = new THREE.CapsuleGeometry(0.3, 1, 4, 8);
-        const material = new THREE.MeshStandardMaterial({ color: colors[i%4] });
-        const capsule = new THREE.Mesh(geometry, material);
-        capsule.position.y = 0.8;
-        group.add(capsule);
-        const headGeo = new THREE.SphereGeometry(0.25);
-        const headMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
-        const head = new THREE.Mesh(headGeo, headMat);
-        head.position.y = 1.4;
-        group.add(head);
-        group.position.set((Math.random()-0.5)*10, -1.5, (Math.random()-0.5)*10 - 5);
-        scene.add(group);
-        people.push(group);
-    }
-    const grid = new THREE.GridHelper(20, 20, 0xffffff, 0x555555);
-    grid.position.y = -1.5;
-    scene.add(grid);
-    let video: HTMLVideoElement | null = null;
-    const startVideo = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            video = document.createElement('video');
-            video.srcObject = stream;
-            video.play();
-            Object.assign(video.style, {position:'absolute',top:'0',left:'0',width:'100%',height:'100%',objectFit:'cover',zIndex:'-1'});
-            containerRef.current?.insertBefore(video, renderer.domElement);
-        } catch (e) { console.error("Camera denied", e); }
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error("Error accessing camera:", err);
+      }
     };
-    if (!(navigator as any).xr) startVideo();
-    camera.position.z = 2;
-    camera.position.y = 0;
-    const animate = () => {
-      renderer.setAnimationLoop(() => {
-         people.forEach((p, idx) => {
-             p.position.z += 0.02 * (idx % 2 === 0 ? 1 : -1);
-             if(p.position.z > 5) p.position.z = -10;
-             if(p.position.z < -10) p.position.z = 5;
-             p.rotation.y = idx % 2 === 0 ? 0 : Math.PI;
-             p.position.y = -1.5 + Math.abs(Math.sin(Date.now()/200 + idx)) * 0.1; 
-         });
-         renderer.render(scene, camera);
-      });
-    };
-    const initXR = async () => {
-        const nav = navigator as any;
-        if (nav.xr && await nav.xr.isSessionSupported('immersive-ar')) {
-             const session = await nav.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] });
-             renderer.xr.setReferenceSpaceType('local');
-             await renderer.xr.setSession(session);
-             animate();
-        } else { animate(); startVideo(); }
-    };
-    initXR();
+    startCamera();
+    
     return () => {
-        renderer.setAnimationLoop(null);
-        if(video && video.srcObject) (video.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-        if(containerRef.current) containerRef.current.innerHTML = '';
-    }
+      const stream = videoRef.current?.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
+    };
   }, []);
+
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[100] bg-black">
-      <Button onClick={onClose} className="absolute top-4 right-4 z-[110] bg-red-600 text-white">Close AR</Button>
-      <div className="absolute bottom-10 left-0 w-full text-center text-white font-bold bg-black/50 p-2 pointer-events-none">Point camera at floor</div>
+    <div className="fixed inset-0 z-[100] bg-black">
+      <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 pointer-events-none bg-black/10" />
+      <SnowFall className="absolute inset-0 z-[120]" />
+      <Button onClick={onClose} className="absolute top-4 right-4 z-[130] bg-red-600 text-white shadow-lg border-2 border-white">Close AR</Button>
+      <div className="absolute bottom-10 left-0 w-full text-center text-white font-bold bg-black/50 p-2 pointer-events-none backdrop-blur-sm z-[130]">Look around for hidden snow!</div>
     </div>
   );
 };
@@ -440,8 +377,8 @@ const InstallModal = ({ onClose }: { onClose: () => void }) => {
          {!os ? (
              <div className="space-y-3">
                  <p className="text-center text-gray-600 mb-4">Select your device for instructions:</p>
-                 <Button onClick={()=>setOs('iOS')} className="w-full bg-gray-100 text-gray-900 hover:bg-gray-200">Apple (iOS)</Button>
-                 <Button onClick={()=>setOs('Android')} className="w-full bg-gray-100 text-gray-900 hover:bg-gray-200">Android</Button>
+                 <Button onClick={()=>setOs('iOS')} className="w-full bg-gray-900 text-white hover:bg-black shadow-md font-bold py-4 rounded-xl border border-gray-700">Apple (iOS)</Button>
+                 <Button onClick={()=>setOs('Android')} className="w-full bg-gray-900 text-white hover:bg-black shadow-md font-bold py-4 rounded-xl border border-gray-700">Android</Button>
              </div>
          ) : (
              <div className="space-y-4 text-left">
@@ -492,8 +429,8 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 max-w-md mx-auto bg-white">
        <div className="absolute top-4 right-4 flex gap-2">
-            <button onClick={()=>setLang('en')} className={`px-3 py-1 rounded-full font-bold text-xs transition-colors ${lang==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>🇺🇸 EN</button>
-            <button onClick={()=>setLang('es')} className={`px-3 py-1 rounded-full font-bold text-xs transition-colors ${lang==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>🇪🇸 ES</button>
+            <button onClick={()=>setLang('en')} className={`px-3 py-1 rounded-full font-bold text-xs transition-colors ${lang==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
+            <button onClick={()=>setLang('es')} className={`px-3 py-1 rounded-full font-bold text-xs transition-colors ${lang==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
       </div>
       <div className="flex items-center justify-center gap-4 mb-4">
           <img src={LOGO_URL} className="w-24 h-24 object-contain"/>
@@ -560,10 +497,10 @@ const GameCard = ({ g, user, users, join, win, leave }: any) => {
                                 </div>
                                 <div className="font-bold text-xs text-center mb-2 text-gray-800 leading-tight">{p.label}</div>
                                 {g.title === 'Corn Hole' && (
-                                    <div className="flex items-center gap-2 mb-2 bg-gray-100 rounded px-2 py-1">
-                                        <button onClick={()=>updateScore(p.id, -1)} className="text-red-600 font-black px-1 text-lg leading-none">-</button>
-                                        <span className="text-lg font-mono font-black text-gray-900">{g.scores?.[p.id] || 0}</span>
-                                        <button onClick={()=>updateScore(p.id, 1)} className="text-green-600 font-black px-1 text-lg leading-none">+</button>
+                                    <div className="flex items-center justify-center gap-3 mb-4 mt-1">
+                                        <button onClick={()=>updateScore(p.id, -1)} className="bg-gray-100 text-red-600 font-black w-10 h-10 rounded-full flex items-center justify-center text-2xl shadow-sm border border-gray-200 active:bg-gray-200 transition-colors pb-1">-</button>
+                                        <span className="text-2xl font-mono font-black text-gray-900 w-8 text-center">{g.scores?.[p.id] || 0}</span>
+                                        <button onClick={()=>updateScore(p.id, 1)} className="bg-gray-100 text-green-600 font-black w-10 h-10 rounded-full flex items-center justify-center text-2xl shadow-sm border border-gray-200 active:bg-gray-200 transition-colors pb-1">+</button>
                                     </div>
                                 )}
                                 {opp && <Button onClick={()=>win(g.id,p,opp)} className="w-full bg-red-600 hover:bg-green-600 text-white text-[10px] py-2 font-bold uppercase tracking-wider">Win</Button>}
@@ -653,9 +590,9 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose }: any) => {
   if(inspectUser) return <div className="fixed inset-0 z-50 bg-white overflow-y-auto"><ProfileScreen user={inspectUser} users={users} games={games} hunts={hunts} onClose={()=>setInspectUser(null)} readOnly /></div>;
 
   return (
-    <div className="pb-20 space-y-6 pt-20">
-      <div className="flex gap-2 overflow-x-auto border-b pb-2 px-2 no-scrollbar">
-          {['USERS','PROGRESS','GUESTBOOK','HUNT','POLLS','DATA'].map(t=><button key={t} onClick={()=>setTab(t)} className={`px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${tab===t?'bg-red-600 text-white':'bg-gray-200'}`}>{t}</button>)}
+    <div className="pb-20 space-y-6 pt-2">
+      <div className="flex gap-1 overflow-x-auto border-b border-gray-300 py-4 px-3 no-scrollbar bg-white/50 backdrop-blur-sm rounded-xl mx-2 mt-2">
+          {['USERS','PROGRESS','GUESTBOOK','HUNT','POLLS','DATA'].map(t=><button key={t} onClick={()=>setTab(t)} className={`px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap border transition-all shadow-sm ${tab===t?'bg-red-700 text-white border-red-700 scale-105':'bg-white text-gray-900 border-gray-300 hover:bg-gray-100'}`}>{t}</button>)}
       </div>
       {tab==='USERS' && <div className="space-y-1">{users.map((u:any)=><div key={u.id} className="flex justify-between items-center p-2 border bg-white rounded"><button onClick={()=>setInspectUser(u)} className="flex items-center gap-3 text-left"><img src={u.photo} className="w-10 h-10 rounded-full border-2 border-gray-200 object-cover"/><span className="font-bold text-sm text-gray-800">{u.name}</span></button><button onClick={()=>deleteDoc(doc(db,'users',u.id))} className="text-red-500 text-xs border border-red-200 px-2 py-1 rounded">Delete</button></div>)}</div>}
       {tab==='PROGRESS' && <div className="space-y-4">
@@ -665,7 +602,19 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose }: any) => {
       {tab==='GUESTBOOK' && <div className="space-y-2">{users.filter((u:any)=>u.hostComment).map((u:any)=><div key={u.id} className="p-3 border bg-white rounded"><div className="flex gap-2 mb-1"><img src={u.photo} className="w-6 h-6 rounded-full"/><span className="font-bold text-sm text-gray-900">{u.name}</span></div><p className="text-sm italic text-gray-900">"{u.hostComment}"</p></div>)}</div>}
       {tab==='POLLS' && <div className="p-4 space-y-6"><div className="bg-white p-4 rounded border shadow-sm"><h3 className="font-bold text-sm mb-2 text-gray-900">Create Poll</h3><Input value={pq} onChange={e=>spq(e.target.value)} placeholder="Question"/><div className="space-y-2 mt-2">{opts.map((o,i)=><div key={i} className="flex gap-2"><Input value={o.text} onChange={e=>{const n=[...opts];n[i].text=e.target.value;setOpts(n)}} placeholder={`Option ${i+1}`} className="flex-1"/><Button variant="danger" onClick={()=>setOpts(opts.filter((_,idx)=>idx!==i))} className="px-3">X</Button></div>)}</div><Button variant="outline" onClick={()=>setOpts([...opts, {id:Date.now().toString(), text:''}])} className="w-full mt-2 text-xs">+ Add Option</Button><Button onClick={createPoll} className="bg-green-600 text-white w-full mt-4">Create Poll</Button></div><div className="space-y-2">{polls.map((p:any)=><div key={p.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center"><span className="text-xs font-bold truncate flex-1 text-gray-800">{p.question}</span><Button variant="danger" onClick={()=>deleteDoc(doc(db,'polls',p.id))} className="text-xs py-1 px-2">Del</Button></div>)}</div></div>}
       {tab==='HUNT' && <div className="p-4 space-y-6"><div className="bg-white p-4 rounded border shadow-sm"><h3 className="font-bold text-sm mb-2 text-gray-900">Add Hunt Item</h3><Input value={ht} onChange={e=>sht(e.target.value)} placeholder="Item Name / Question"/><div className="flex gap-2 mt-2"><Button variant={hType==='VILLAGE'?'primary':'outline'} onClick={()=>sHType('VILLAGE')} className="flex-1 text-xs">Village</Button><Button variant={hType==='HOUSE'?'primary':'outline'} onClick={()=>sHType('HOUSE')} className="flex-1 text-xs">House</Button></div><select value={hCat} onChange={e=>sHCat(e.target.value)} className="w-full mt-2 p-2 border rounded bg-white text-gray-900 text-sm focus:border-red-500 outline-none"><option value="">Select Category...</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select><Button onClick={createHunt} className="bg-green-600 text-white w-full mt-4">Add Item</Button></div><div className="space-y-2 max-h-60 overflow-y-auto">{hunts.map((h:any)=><div key={h.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center"><span className="text-xs font-bold truncate flex-1 text-gray-800">{h.text} ({h.huntType}) [{h.type}]</span><Button variant="danger" onClick={()=>deleteDoc(doc(db,'hunt_items',h.id))} className="text-xs py-1 px-2">Del</Button></div>)}</div></div>}
-      {tab==='DATA' && <div className="p-4 space-y-6"><div className="space-y-2"><Button onClick={()=>{if(prompt("Pass?")==='kokomo'){const b=writeBatch(db);INITIAL_HUNTS.forEach(x=>b.set(doc(db,'hunt_items',x.id),x));INITIAL_POLLS.forEach(x=>b.set(doc(db,'polls',x.id),x));b.commit();alert("Reseeded!")}}} className="bg-blue-600 text-white text-xs w-full py-3">RE-SEED DATA (Fix Missing)</Button><Button onClick={async()=>{if(prompt("Type 'kokomo' to WIPE ALL HISTORY & USERS:") !== 'kokomo') return alert("Wrong Password");const b = writeBatch(db);users.forEach((u:any) => b.delete(doc(db,'users',u.id)));const gamesSnaps = await import('firebase/firestore').then(m=>m.getDocs(collection(db,'games')));gamesSnaps.forEach(g=>b.update(doc(db,'games',g.id),{signups:[],results:[],scores:{}}));const photoSnaps = await import('firebase/firestore').then(m=>m.getDocs(collection(db,'photos')));photoSnaps.forEach(p=>b.delete(doc(db,'photos',p.id)));polls.forEach((p:any)=>b.update(doc(db,'polls',p.id),{answers:{}}));await b.commit();alert("All History & Users Cleared.");window.location.reload();}} className="bg-red-600 text-white text-xs w-full py-3 font-bold">CLEAR ALL HISTORY & USERS</Button></div></div>}
+      {tab==='DATA' && <div className="p-4 space-y-6"><div className="space-y-2"><Button onClick={async()=>{if(prompt("Pass?")==='kokomo'){
+          const b=writeBatch(db);
+          // 1. Delete ALL existing hunt items to remove extras
+          const huntSnaps = await getDocs(collection(db, 'hunt_items'));
+          huntSnaps.forEach(d => b.delete(d.ref));
+          
+          // 2. Add New Ones
+          INITIAL_HUNTS.forEach(x=>b.set(doc(db,'hunt_items',x.id),x));
+          INITIAL_POLLS.forEach(x=>b.set(doc(db,'polls',x.id),x));
+          
+          await b.commit();
+          alert("Synced! Old items removed, new items added.");
+      }}} className="bg-blue-600 text-white text-xs w-full py-3">SYNC DATA (Remove Extras & Fix)</Button><Button onClick={async()=>{if(prompt("Type 'kokomo' to WIPE ALL HISTORY & USERS:") !== 'kokomo') return alert("Wrong Password");const b = writeBatch(db);users.forEach((u:any) => b.delete(doc(db,'users',u.id)));const gamesSnaps = await import('firebase/firestore').then(m=>m.getDocs(collection(db,'games')));gamesSnaps.forEach(g=>b.update(doc(db,'games',g.id),{signups:[],results:[],scores:{}}));const photoSnaps = await import('firebase/firestore').then(m=>m.getDocs(collection(db,'photos')));photoSnaps.forEach(p=>b.delete(doc(db,'photos',p.id)));polls.forEach((p:any)=>b.update(doc(db,'polls',p.id),{answers:{}}));await b.commit();alert("All History & Users Cleared.");window.location.reload();}} className="bg-red-600 text-white text-xs w-full py-3 font-bold">CLEAR ALL HISTORY & USERS</Button></div></div>}
     </div>
   );
 };
@@ -750,15 +699,16 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
   }, [readOnly, user.id]);
 
   return (
-    <div className="p-6 space-y-5 pt-10">
-      <Card className="p-6 relative bg-white/95 backdrop-blur shadow-xl border-t-4 border-red-600">
-          {!readOnly && <div className="absolute top-4 right-4 flex gap-2">
-            <button onClick={()=>changeLang('en')} className={`px-2 py-1 rounded-full font-bold text-[10px] transition-colors ${user.language==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>🇺🇸</button>
-            <button onClick={()=>changeLang('es')} className={`px-2 py-1 rounded-full font-bold text-[10px] transition-colors ${user.language==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>🇪🇸</button>
-          </div>}
+    <div className="p-6 space-y-5 pt-10 relative">
+      {!readOnly && <div className="absolute top-0 right-6 flex gap-2 z-10">
+        <button onClick={()=>changeLang('en')} className={`px-4 py-2 rounded-full font-bold text-xs transition-colors shadow-sm ${user.language==='en'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
+        <button onClick={()=>changeLang('es')} className={`px-4 py-2 rounded-full font-bold text-xs transition-colors shadow-sm ${user.language==='es'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
+      </div>}
+
+      <Card className="p-6 relative bg-white/95 backdrop-blur shadow-xl border-t-4 border-red-600 mt-6">
           <div className="flex flex-col items-center -mt-16 mb-4 relative">
                <div className="relative">
-                   <img src={preview} className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover bg-gray-200" />
+                   <img src={preview} className="w-36 h-36 rounded-full border-4 border-white shadow-lg object-cover bg-gray-200" />
                    {uploading && <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"/></div>}
                    {winCount > 0 && <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-black shadow border border-white flex items-center gap-1"><IconTrophy className="w-3 h-3"/> {winCount}</div>}
                </div>
@@ -882,8 +832,23 @@ export const App = () => {
   }, []);
   
   const nextQuestion = () => {
-      const q = TRADITIONAL_QUIZ[Math.floor(Math.random() * TRADITIONAL_QUIZ.length)];
-      setQuizQ(q);
+      const rawQ = TRADITIONAL_QUIZ[Math.floor(Math.random() * TRADITIONAL_QUIZ.length)];
+      
+      // Shuffle logic for answers
+      const indices = rawQ.a.map((_, i) => i);
+      for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      
+      const shuffledQ = {
+          ...rawQ,
+          a: indices.map(i => rawQ.a[i]),
+          aEs: indices.map(i => rawQ.aEs[i]),
+          c: indices.indexOf(rawQ.c)
+      };
+
+      setQuizQ(shuffledQ);
       setQuizFeedback(null);
   };
   useEffect(() => { if(!quizQ) nextQuestion(); }, []);
@@ -1029,7 +994,7 @@ export const App = () => {
         
         {view==='GAMES'&&<GamesScreen games={games} user={user} users={users} />}
         
-        {(view==='HUNT_VILLAGE'||view==='HUNT_HOUSE')&&<div className="space-y-4">
+        {(view==='HUNT_VILLAGE'||view==='HUNT_HOUSE')&&<div className="space-y-4 pb-32">
           {['Hidden Items','CHRISTMAS','DISNEY','TV & MOVIES','CREATURES','SCI-FI','ANIMALS','Questions'].map(cat=>{
               const items=hunts.filter((h:any)=>h.huntType===(view==='HUNT_VILLAGE'?'VILLAGE':'HOUSE')&&h.category===cat);
               if(!items.length)return null;
@@ -1103,7 +1068,7 @@ export const App = () => {
                             key={i}
                             disabled={!!quizFeedback}
                             onClick={()=>handleQuizAnswer(i)}
-                            className={`p-3 rounded-lg font-bold transition-all transform active:scale-95 ${quizFeedback ? (i===quizQ.c ? 'bg-green-600 text-white' : i===getTx(quizQ,'a',userLang).indexOf(ans) ? 'bg-red-200 text-gray-400' : 'bg-gray-100 text-gray-400') : 'bg-red-50 hover:bg-red-100 text-red-900'}`}
+                            className={`p-3 rounded-lg font-bold transition-all transform active:scale-95 ${quizFeedback ? (i===quizQ.c ? 'bg-green-600 text-white' : i===getTx(quizQ,'a',userLang).indexOf(ans) ? 'bg-red-200 text-gray-400' : 'bg-gray-100 text-gray-400') : 'bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-gray-50'}`}
                          >
                             {ans}
                          </button>
@@ -1116,7 +1081,7 @@ export const App = () => {
         
         {view==='ADMIN'&&<AdminDashboard users={users} polls={polls} hunts={hunts} games={games} onClose={()=>setView('HOME')}/>}
         {view==='PROFILE'&&<ProfileScreen user={user} users={users} games={games} hunts={hunts} onClose={()=>setView('HOME')}/>}
-        {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? 'Zipping Photos...' : 'Download All'}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full"/><div className="absolute bottom-1 right-1 bg-white p-1 rounded-full"><IconDownload className="w-4 h-4"/></div></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,f);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
+        {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? 'Zipping Photos...' : 'Download All'}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full"/></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,f);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
       </main>
       <nav className="bg-white/90 backdrop-blur-md border-t p-2 pb-6 grid grid-cols-6 gap-1 text-[10px] font-bold text-gray-500 fixed bottom-0 w-full max-w-3xl z-[60]">
         {[ ['HOME',IconHome],['HUNT_VILLAGE',IconVillage],['HUNT_HOUSE',IconHouse],['VOTING',IconVote],['GAMES',IconGamepad],['PHOTOS',IconCamera] ].map(([v,I]:any)=><button key={v} onClick={()=>setView(v)} className={`flex flex-col items-center ${view===v?'text-green-800':''}`}><I className={`w-8 h-8 ${view===v?'stroke-2':'stroke-1'}`}/></button>)}
