@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -50,14 +51,18 @@ export const Input = ({
   placeholder,
   type = "text",
   className = "",
-  label
+  inputClassName = "",
+  label,
+  disabled
 }: {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
   type?: string;
   className?: string;
+  inputClassName?: string;
   label?: string;
+  disabled?: boolean;
 }) => (
   <div className={`w-full ${className}`}>
     {label && <label className="block text-sm font-bold mb-1 text-gray-700 uppercase tracking-wide">{label}</label>}
@@ -66,7 +71,8 @@ export const Input = ({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-red-600 focus:ring-2 focus:ring-red-100 focus:outline-none transition-all bg-white text-lg placeholder:text-gray-400"
+      disabled={disabled}
+      className={`w-full p-3 border-2 border-gray-300 rounded-xl focus:border-red-600 focus:ring-2 focus:ring-red-100 focus:outline-none transition-all bg-white text-lg text-gray-900 placeholder:text-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed ${inputClassName}`}
     />
   </div>
 );
@@ -91,7 +97,7 @@ export const TextArea = ({
       onChange={onChange}
       placeholder={placeholder}
       rows={3}
-      className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-red-600 focus:outline-none transition-colors bg-white resize-none text-base"
+      className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-red-600 focus:outline-none transition-colors bg-white resize-none text-base text-gray-900"
     />
   </div>
 );

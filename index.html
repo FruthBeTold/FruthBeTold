@@ -36,6 +36,7 @@
             animation: {
               'wiggle': 'wiggle 1s ease-in-out infinite',
               'dance': 'dance 0.8s ease-in-out infinite',
+              'snow': 'snow 10s linear infinite',
             },
             keyframes: {
               wiggle: {
@@ -46,6 +47,10 @@
                 '0%, 100%': { transform: 'translateY(0) rotate(0deg) scale(1)' },
                 '25%': { transform: 'translateY(-10px) rotate(-10deg) scale(1.1)' },
                 '75%': { transform: 'translateY(-5px) rotate(10deg) scale(1.1)' },
+              },
+              snow: {
+                '0%': { transform: 'translateY(-10vh)' },
+                '100%': { transform: 'translateY(110vh)' },
               }
             }
           },
@@ -54,26 +59,52 @@
     </script>
     <style>
       html, body {
-        background-color: #ffffff;
-        color: #000000;
-        -webkit-font-smoothing: antialiased;
-        overscroll-behavior-y: none; /* Prevent pull-to-refresh effect */
-        touch-action: pan-x pan-y; /* Disable double-tap zoom */
-        -webkit-text-size-adjust: 100%;
         height: 100%;
-        overflow: hidden; /* Prevent body scroll, handle in main container */
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        overscroll-behavior-y: none;
+        touch-action: pan-x pan-y;
+        -webkit-text-size-adjust: 100%;
       }
-      /* Hide scrollbar for clean UI but allow scroll */
+
+      /* Global Background Image */
+      #bg-layer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background-image: url('https://media.istockphoto.com/id/614332492/photo/snow-storm.jpg?s=612x612&w=0&k=20&c=UT779vnlT6q5tRGHR_JbweEC8L0tHbXMeogrAqJeQSo=');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+
+      /* Ensure inputs don't zoom on iOS by enforcing 16px font size */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
+
+      .snowflake {
+        position: fixed;
+        top: -10px;
+        z-index: 9999;
+        color: white;
+        font-size: 1em;
+        text-shadow: 0 0 5px #000;
+        user-select: none;
+        pointer-events: none;
+      }
+
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
       .no-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
-      }
-      /* Ensure inputs don't zoom on iOS by enforcing 16px font size */
-      input, textarea, select {
-        font-size: 16px !important;
       }
     </style>
   <script type="importmap">
@@ -86,12 +117,15 @@
     "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
     "firebase/storage": "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "jszip": "https://esm.run/jszip"
   }
 }
 </script>
 </head>
   <body>
+    <div id="bg-layer"></div>
     <div id="root" class="h-full"></div>
   </body>
 </html>

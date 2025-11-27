@@ -3,8 +3,12 @@ export interface User {
   id: string;
   name: string;
   photo: string; // Base64
-  email: string;
-  phone: string;
+  email: string; // From Auth
+  phone: string; // From Auth
+  // Future Contact Info (User Input)
+  futureEmail?: string;
+  futurePhone?: string;
+  
   hostComment: string;
   votesReceived: number;
   hasVotedForId: string | null;
@@ -12,6 +16,10 @@ export interface User {
   huntProgress: Record<string, boolean | string>; 
   timestamp: number;
   language: 'en' | 'es';
+  
+  // Quiz Stats
+  quizScore: number;
+  quizTotalAttempted: number;
 }
 
 export type HuntType = 'VILLAGE' | 'HOUSE';
@@ -73,6 +81,7 @@ export interface Game {
   type: 'TEAM' | 'INDIVIDUAL'; 
   signups: GameSignup[];
   results: GameResult[];
+  scores?: Record<string, number>; // Live score tracking
 }
 
 export type ViewState = 
