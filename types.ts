@@ -5,6 +5,7 @@ export interface User {
   photo: string; // Base64
   email: string; // From Auth
   phone: string; // From Auth
+  isGuest?: boolean; // Flag for manually added users
   // Future Contact Info (User Input)
   futureEmail?: string;
   futurePhone?: string;
@@ -20,6 +21,14 @@ export interface User {
   // Quiz Stats
   quizScore: number;
   quizTotalAttempted: number;
+  answeredQuizIds?: number[]; // Indices of questions already answered
+
+  // Selfie Challenge: challengeId -> photoUrl
+  selfieProgress?: Record<string, string>;
+  
+  // Elf Game
+  elfImage?: string; // Latest image
+  elfGenerations?: string[]; // History of all generated images
 }
 
 export type HuntType = 'VILLAGE' | 'HOUSE';
@@ -87,6 +96,7 @@ export interface Game {
 export type ViewState = 
   | 'WELCOME'
   | 'HOME'
+  | 'DRINKS'
   | 'HUNT_VILLAGE'
   | 'HUNT_HOUSE'
   | 'GAMES'

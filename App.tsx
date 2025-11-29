@@ -1,13 +1,15 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { User, ViewState, HuntItem, Poll, Photo, Game } from './types';
-import { IconHome, IconVillage, IconHouse, IconVote, IconCamera, IconLock, IconUpload, IconDownload, IconPlus, IconGamepad, IconTrophy, IconSnow } from './components/Icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, ViewState, HuntItem, Poll, Game } from './types';
+import { IconHome, IconVillage, IconHouse, IconVote, IconCamera, IconLock, IconPlus, IconGamepad, IconTrophy, IconSnow, IconCheck } from './components/Icons';
 import { Button, Input, Card } from './components/UI';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, increment, deleteDoc, addDoc, query, orderBy, writeBatch, getDoc, where, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, increment, deleteDoc, addDoc, query, orderBy, writeBatch, getDoc, where, getDocs, arrayUnion } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import * as firebaseStorage from 'firebase/storage';
+import { GoogleGenAI } from "@google/genai";
 import JSZip from 'jszip';
+import imageCompression from 'browser-image-compression';
 
 const firebaseConfig = { apiKey: "AIzaSyCJ_qmMSCWyFgLAEWy9YDCGAb5m2YUwV28", authDomain: "christmas-test---fruthbetold.firebaseapp.com", projectId: "christmas-test---fruthbetold", storageBucket: "christmas-test---fruthbetold.firebasestorage.app", messagingSenderId: "965407401986", appId: "1:965407401986:web:29473e6de9aa3626de1f1b", measurementId: "G-L8VSZWKPLG" };
 const app = initializeApp(firebaseConfig);
@@ -16,7 +18,81 @@ const auth = getAuth(app);
 const storage = firebaseStorage.getStorage(app);
 const LOGO_URL = "https://static.wixstatic.com/media/d8edc3_6b8535321c8d4e35aa4351da27493b19~mv2.png/v1/fill/w_506,h_506,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBT%20-5%20(1-24-25).png";
 
+// --- HELPERS ---
+
+const compressImage = async (file: File) => {
+  const options = {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1920,
+    useWebWorker: true
+  };
+  try {
+    return await imageCompression(file, options);
+  } catch (error) {
+    console.error("Compression error:", error);
+    return file; 
+  }
+};
+
 // --- DATA CONSTANTS ---
+
+const DRINK_RECIPES = [
+  {
+    id: 'd1',
+    name: "The Nutty Elf",
+    ingredients: "2 oz Peanut Butter Whiskey, 2 oz Chocolate Baileys, Splash of Creamer",
+    instructions: "Mix equal parts over ice. Shake well if you're feeling fancy.",
+    image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400"
+  },
+  {
+    id: 'd2',
+    name: "Yule Mule",
+    ingredients: "2 oz Vodka, 3 oz Cranberry Juice, Top with Ginger Ale",
+    instructions: "Pour vodka over ice, fill halfway with cranberry, top with ginger ale.",
+    image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400"
+  },
+  {
+    id: 'd3',
+    name: "The Grinch’s Fizz",
+    ingredients: "2 oz Tequila, 2 oz Pineapple Juice, Top with Sprite",
+    instructions: "Tequila and pineapple juice over ice, top with Sprite for the fizz.",
+    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=400"
+  },
+  {
+    id: 'd4',
+    name: "Santa’s Punch",
+    ingredients: "1 oz Vodka, 1 oz Orange Juice, 1 oz Cranberry Juice, 1 oz Pineapple Juice",
+    instructions: "Mix it all up! The more fruit juice, the merrier.",
+    image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400"
+  },
+  {
+    id: 'd5',
+    name: "Tipsy Reindeer",
+    ingredients: "2 oz Peanut Butter Whiskey, Top with Coke",
+    instructions: "Simple and dangerous. Whiskey first, Coke second.",
+    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=400"
+  },
+  {
+    id: 'd6',
+    name: "Snow Day",
+    ingredients: "2 oz Chocolate Baileys, 1 oz Vodka, Splash of Creamer",
+    instructions: "Like a White Russian but better. Serve over plenty of ice.",
+    image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400"
+  }
+];
+
+const SELFIE_CHALLENGES = [
+  { id: 'sc1', title: 'The "Gulliver" Shot', titleEs: 'La foto "Gulliver"', desc: 'Go to the Christmas village and take a selfie where your head looks massive next to the tiny houses.', descEs: 'Ve a la villa navideña y toma una selfie donde tu cabeza se vea enorme junto a las casas diminutas.' },
+  { id: 'sc2', title: 'Tree Hugger', titleEs: 'Abraza-árboles', desc: 'You have plenty of Christmas trees to choose from! Find your absolute favorite one and take a selfie with it.', descEs: '¡Tienes muchos árboles! Encuentra tu favorito y tómate una selfie con él.' },
+  { id: 'sc3', title: 'Fire & Glow', titleEs: 'Fuego y Brillo', desc: 'Head outside to the fire pit and get a cozy selfie with the firelight glowing on your face (no flash allowed!).', descEs: 'Ve afuera a la fogata y toma una selfie acogedora con el brillo del fuego en tu cara (¡sin flash!).' },
+  { id: 'sc4', title: 'The Ornament Challenge', titleEs: 'El Reto del Adorno', desc: 'Find one of your favorite ornaments within one of the trees and take a selfie with it.', descEs: 'Encuentra uno de tus adornos favoritos en uno de los árboles y tómate una selfie con él.' },
+  { id: 'sc5', title: 'Mayor of the Village', titleEs: 'Alcalde de la Villa', desc: 'Point out your favorite tiny detail or character in the Christmas village and take a selfie with it.', descEs: 'Señala tu detalle o personaje favorito en la villa navideña y tómate una selfie con él.' },
+  { id: 'sc6', title: 'The "Tree Count" Challenge', titleEs: 'Reto "Conteo de Árboles"', desc: 'Try to angle your camera to get as many of the Christmas trees into the background of a single selfie as possible. How many can you fit?', descEs: 'Intenta encuadrar tantos árboles de Navidad como puedas en el fondo de una sola selfie. ¿Cuántos caben?' },
+  { id: 'sc7', title: 'Lit Up', titleEs: 'Iluminado', desc: 'Find a heavily decorated spot, turn off your camera flash, and take a moody selfie illuminated only by Christmas lights.', descEs: 'Encuentra un lugar muy decorado, apaga el flash y toma una selfie iluminada solo por luces navideñas.' },
+  { id: 'sc8', title: 'Festive Cheers', titleEs: 'Brindis Festivo', desc: 'Grab your holiday drink of choice and toast the camera in front of the fireplace or your favorite decor piece.', descEs: 'Toma tu bebida favorita y brinda a la cámara frente a la chimenea o tu decoración favorita.' },
+  { id: 'sc9', title: 'Santa’s Little Helper', titleEs: 'Ayudante de Santa', desc: 'Find the most excessive piece of Christmas decor in the house and strike your best "overwhelmed elf" pose next to it.', descEs: 'Encuentra la decoración más excesiva de la casa y haz tu mejor pose de "elfo abrumado" junto a ella.' },
+  { id: 'sc10', title: 'Indoor/Outdoor Contrast', titleEs: 'Contraste Interior/Exterior', desc: 'Take one selfie cozy inside by a tree, and immediately take a second selfie braving the cold near the outside fire pit. (Upload your favorite of the two!).', descEs: 'Toma una selfie acogedora adentro junto a un árbol, y otra afuera desafiando el frío. (¡Sube tu favorita de las dos!).' },
+];
 
 const CHRISTMAS_FACTS = {
   en: [
@@ -36,7 +112,7 @@ const CHRISTMAS_FACTS = {
     "Dutch children leave shoes out for Sinterklaas, not stockings.", "There are 364 gifts given in the '12 Days of Christmas'.",
     "In Germany, Poland, and Ukraine, finding a spider web on the tree is lucky.", "The first artificial tree brushes were made by a toilet brush company.",
     "Santa Claus is known as Pere Noel in France.", "Mistletoe literally translates to 'dung on a twig' (from birds).",
-    "Washington Irving created the image of Santa flying in a sleigh.", "Rudolph's red nose would likely be a result of a parasitic infection.",
+    "Washington Irving created the image of Santa flying in a sleigh.", "La nariz roja de Rudolph sería resultado de una infección.",
     "US scientists calculated that Santa visits 822 homes a second.", "Roast peacock was a popular medieval Christmas dinner.",
     "St. Stephen's Day (Boxing Day) is the day after Christmas.", "The Nutcracker was a flop when it first premiered in 1892.",
     "The term 'Boxing Day' comes from church poor boxes.", "Approximately 30-35 million real Christmas trees are sold in the US alone.",
@@ -44,7 +120,8 @@ const CHRISTMAS_FACTS = {
     "Christmas wasn't declared a federal holiday in the US until 1870.", "Los renos machos pierden sus cuernos en invierno; los de Santa son hembras.",
     "A 'Yule Log' is actually a giant log burned during the 12 days of Christmas.", "The first gingerbread man is credited to Queen Elizabeth I.",
     "Deck the Halls dates back to the 16th century.", "Paul McCartney earns about $400k a year from 'Wonderful Christmastime'.",
-    "Gold, Frankincense, and Myrrh were standard gifts for kings.", "The poinsettia market is worth about $250 million."
+    "Gold, Frankincense, and Myrrh were standard gifts for kings.", "The poinsettia market is worth about $250 million.",
+    "Male reindeer lose their antlers in winter; Santa's are female."
   ],
   es: [
     "Jingle Bells fue escrito originalmente para Acción de Gracias.", "Santa tiene un código postal: H0H 0H0.", "Rudolph fue un truco de marketing de Montgomery Ward.", 
@@ -71,7 +148,8 @@ const CHRISTMAS_FACTS = {
     "La Navidad no fue feriado federal en EE.UU. hasta 1870.", "Los renos machos pierden sus cuernos en invierno; los de Santa son hembras.",
     "Un 'Tronco de Navidad' se quema durante los 12 días.", "El primer hombre de jengibre se atribuye a la Reina Isabel I.",
     "Deck the Halls data del siglo XVI.", "Paul McCartney gana $400k al año con 'Wonderful Christmastime'.",
-    "Oro, Incienso y Mirra eran regalos para reyes.", "El mercado de flores de Pascua vale $250 millones."
+    "Oro, Incienso y Mirra eran regalos para reyes.", "El mercado de flores de Pascua vale $250 millones.",
+    "Los renos machos pierden sus cuernos en invierno; los de Santa son hembras."
   ]
 };
 
@@ -242,8 +320,8 @@ const INITIAL_HUNTS: HuntItem[] = [
 const INITIAL_POLLS: Poll[] = [
   {id:'p1',question:'The "Die Hard" Dilemma: Is Die Hard actually a Christmas movie?', questionEs:'El dilema "Die Hard": ¿Es realmente una película navideña?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Yes, 100%. It happens on Christmas Eve!', textEs:'Sí, 100%. ¡Ocurre en Nochebuena!'},{id:'b',text:'No, it is an action movie that happens to take place in December.', textEs:'No, es una película de acción que ocurre en diciembre.'},{id:'c',text:'It’s a movie I watch at Christmas, but not a "Christmas Movie."', textEs:'Es una película que veo en Navidad, pero no "Navideña".'}]},
   {id:'p2',question:'The Music Timeline: When is it socially acceptable to start playing Christmas music?', questionEs:'Música: ¿Cuándo es aceptable empezar a poner música navideña?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'As soon as Halloween ends (Nov 1st).', textEs:'En cuanto termina Halloween (1 Nov).'},{id:'b',text:'Not until after Thanksgiving.', textEs:'No hasta después de Acción de Gracias.'},{id:'c',text:'December 1st strictly.', textEs:'El 1 de diciembre estrictamente.'},{id:'d',text:'Only the week of Christmas.', textEs:'Solo la semana de Navidad.'}]},
-  {id:'p3',question:'The Great Tree Debate: What is the superior Christmas Tree situation?', questionEs:'El debate del árbol: ¿Cuál es la mejor situación para el árbol?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Real tree (Need the smell!).', textEs:'Árbol real (¡Necesito el olor!).'},{id:'b',text:'Árbol artificial (Need the convenience!).', textEs:'Árbol artificial (¡Conveniencia!).'},{id:'c',text:'A small tabletop plant/Charlie Brown tree.', textEs:'Una planta pequeña de mesa.'},{id:'d',text:'No tree for me.', textEs:'Sin árbol para mí.'}]},
-  {id:'p4',question:'The Eggnog Stance: What are your feelings on Eggnog?', questionEs:'El ponche de huevo: ¿Qué opinas?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'I love it!', textEs:'¡Me encanta!'},{id:'b',text:'Only if it\'s spiked with something strong.', textEs:'Solo si tiene alcohol fuerte.'},{id:'c',text:'Absolutamente asqueroso.', textEs:'Absolutamente asqueroso.'},{id:'d',text:'I’ve actually never tried it.', textEs:'Nunca lo he probado.'}]},
+  {id:'p3',question:'The Great Tree Debate: What is the superior Christmas Tree situation?', questionEs:'El debate del árbol: ¿Cuál es la mejor situación para el árbol?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Real tree (Need the smell!).', textEs:'Árbol real (¡Necesito el olor!).'},{id:'b',text:'Artificial tree (Need the convenience!).', textEs:'Árbol artificial (¡Conveniencia!).'},{id:'c',text:'A small tabletop plant/Charlie Brown tree.', textEs:'Una planta pequeña de mesa.'},{id:'d',text:'No tree for me.', textEs:'Sin árbol para mí.'}]},
+  {id:'p4',question:'The Eggnog Stance: What are your feelings on Eggnog?', questionEs:'El ponche de huevo: ¿Qué opinas?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'I love it!', textEs:'¡Me encanta!'},{id:'b',text:'Only if it\'s spiked with something strong.', textEs:'Solo si tiene alcohol fuerte.'},{id:'c',text:'Absolutely disgusting.', textEs:'Absolutamente asqueroso.'},{id:'d',text:'I’ve actually never tried it.', textEs:'Nunca lo he probado.'}]},
   {id:'p5',question:'Cookie Contenders: If you could only eat one holiday treat for the rest of your life, what would it be?', questionEs:'Galletas: ¿Si solo pudieras comer un dulce navideño por el resto de tu vida?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Gingerbread Men.', textEs:'Hombres de jengibre.'},{id:'b',text:'Frosted Sugar Cookies.', textEs:'Galletas de azúcar glaseadas.'},{id:'c',text:'Peppermint Bark.', textEs:'Corteza de menta.'},{id:'d',text:'Fudge.', textEs:'Dulce de azúcar.'}]},
   {id:'p6',question:'The Dinner Main Event: What is the centerpiece of the Christmas Dinner?', questionEs:'La cena: ¿Cuál es el plato principal?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Ham.', textEs:'Jamón.'},{id:'b',text:'Turkey (Round 2 after Thanksgiving).', textEs:'Pavo (Ronda 2).'},{id:'c',text:'Roast Beef / Prime Rib.', textEs:'Rosbif / Costilla.'},{id:'d',text:'Tamales / Lasagna / Something non-traditional.', textEs:'Tamales / Lasaña / Algo no tradicional.'}]},
   {id:'p7',question:'The Opening Ceremony: When does your family open the "Main" presents?', questionEs:'Los regalos: ¿Cuándo abre tu familia los regalos "principales"?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'Christmas Eve.', textEs:'Nochebuena.'},{id:'b',text:'Christmas Morning.', textEs:'Mañana de Navidad.'},{id:'c',text:'We open one on Eve, the rest in the morning.', textEs:'Uno en Nochebuena, el resto en la mañana.'},{id:'d',text:'Whenever everyone finally wakes up/arrives.', textEs:'Cuando todos despiertan/llegan.'}]},
@@ -252,14 +330,14 @@ const INITIAL_POLLS: Poll[] = [
   {id:'p10',question:'The Cleanup: When do the decorations come down?', questionEs:'Limpieza: ¿Cuándo se quitan las decoraciones?', type:'MULTIPLE_CHOICE',isActive:true,answers:{},options:[{id:'a',text:'December 26th (It’s over immediately).', textEs:'26 de diciembre.'},{id:'b',text:'New Year\'s Day.', textEs:'Día de Año Nuevo.'},{id:'c',text:'After the Epiphany (Jan 6th).', textEs:'Después de Reyes (6 de enero).'},{id:'d',text:'Sometime in February... or March.', textEs:'En febrero... o marzo.'}]},
 ];
 
-const INITIAL_GAMES: Game[] = [{id:'g1',title:'Corn Hole',type:'TEAM',signups:[],results:[], scores:{}}, {id:'g2',title:'Beer Pong',type:'TEAM',signups:[],results:[]}, {id:'g3',title:'Jenga',type:'TEAM',signups:[],results:[]}, {id:'g4',title:'Connect 4',type:'TEAM',signups:[],results:[]}];
+const INITIAL_GAMES: Game[] = [{id:'g1',title:'Games',type:'TEAM',signups:[],results:[], scores:{}}, {id:'g2',title:'Beer Pong',type:'TEAM',signups:[],results:[]}, {id:'g3',title:'Jenga',type:'TEAM',signups:[],results:[]}, {id:'g4',title:'Connect 4',type:'TEAM',signups:[],results:[]}];
 
 const UI = {
   en: { 
     nav:{HOME:'Home',HUNT_VILLAGE:'Village',HUNT_HOUSE:'House',VOTING:'Vote',GAMES:'Games',PHOTOS:'Photos',ADMIN:'Admin',PROFILE:'Profile'}, 
-    home:{title:"CHRISTMAS PARTY 2025",hello:"Hello",partyTime:"PARTY TIME",send:"Send",comment:"Leave a note...",steps:["Grab a drink","Grab some food","Do a scavenger hunt","Play some games","Snap a photo at the photobooth","And most of all have a great time!"]}, 
-    games:{title:"Party Games",signup:"Sign Up",winner:"Winner", rules:"Rules", history:"History", teams:"Teams", waiting:"Waiting...", selectPartner:"Select Partner...", addPartner:"+ Add Partner", leave:"Leave", close:"Close"}, 
-    vote:{title:"Vote | Polls | Trivia",voteBtn:"Vote",voted:"Voted"}, 
+    home:{title:"CHRISTMAS PARTY 2025",hello:"Hello",partyTime:"PARTY TIME",send:"Send",comment:"Leave a note in the guest book...",steps:["Grab a drink","Grab some food","Do a scavenger hunt","Play some games","Snap a photo at the photobooth","And most of all have a great time!"], didYouKnow:"Did You Know?", castVote: "Cast your ugly sweater vote!"}, 
+    games:{title:"Games",signup:"Sign Up",winner:"Winner", rules:"Rules", history:"History", teams:"Teams", waiting:"Waiting...", selectPartner:"Select Partner...", addPartner:"+ Add Partner", leave:"Leave", close:"Close", selfie: "The Selfie Challenge", elf: "Elf Yourself", elfInput: "Take/Upload Photo", elfResult: "Your Elf Self", elfLoading: "Please allow up to 30 seconds for the elves to work their magic..."}, 
+    vote:{title:"Vote | Polls | Trivia",voteBtn:"Vote",voted:"Voted", uglySweater:"Ugly Sweater", polls: "Polls", trivia: "Trivia"}, 
     admin:{dashboard:"Dashboard",restart:"Restart Party",exit:"Exit"}, 
     welcome:{join:"Join Party"},
     profile:{
@@ -272,7 +350,13 @@ const UI = {
         email: "Email",
         phone: "Phone Number",
         submit: "Keep me in the loop!",
-        trophies: "Hall of Fame"
+        trophies: "Hall of Fame",
+        calendar: "Add December 5, 2026 for next year's party",
+        elfSelf: "Your Elf Self",
+        selfieChallenge: "Selfie Challenge",
+        userPhotos: "User's Photos",
+        backToParty: "Back to Party",
+        backToList: "← Back to User List"
     },
     install: {
         title: "Add App to Home Screen",
@@ -286,13 +370,16 @@ const UI = {
             "Tap **Add** in the top right corner."
         ],
         gotIt: "Got it!"
-    }
+    },
+    photos: { download: "Download All" },
+    hunt: { progress: "Progress" },
+    drinks: { title: "Drinks" }
   },
   es: { 
     nav:{HOME:'Inicio',HUNT_VILLAGE:'Villa',HUNT_HOUSE:'Casa',VOTING:'Votar',GAMES:'Juegos',PHOTOS:'Fotos',ADMIN:'Admin',PROFILE:'Perfil'}, 
-    home:{title:"FIESTA DE NAVIDAD 2025",hello:"Hola",partyTime:"HORA DE FIESTA",send:"Enviar",comment:"Nota...",steps:["Bebida","Comida","Búsqueda","Juegos","Fotos","¡Diviértete!"]}, 
-    games:{title:"Juegos",signup:"Unirse",winner:"Ganador", rules:"Reglas", history:"Historial", teams:"Equipos", waiting:"Esperando...", selectPartner:"Seleccionar Compañero...", addPartner:"+ Añadir Compañero", leave:"Salir", close:"Cerrar"}, 
-    vote:{title:"Voto | Encuestas | Trivia",voteBtn:"Votar",voted:"Votado"}, 
+    home:{title:"FIESTA DE NAVIDAD 2025",hello:"Hola",partyTime:"HORA DE FIESTA",send:"Enviar",comment:"Nota en el libro de visitas...",steps:["Bebida","Comida","Búsqueda","Juegos","Fotos","¡Diviértete!"], didYouKnow: "¿Sabías que?", castVote: "¡Vota por el suéter más feo!"}, 
+    games:{title:"Juegos",signup:"Unirse",winner:"Ganador", rules:"Reglas", history:"Historial", teams:"Equipos", waiting:"Esperando...", selectPartner:"Seleccionar Compañero...", addPartner:"+ Añadir Compañero", leave:"Salir", close:"Cerrar", selfie: "Reto de Selfies", elf: "Conviértete en Elfo", elfInput: "Tomar/Subir Foto", elfResult: "Tu Versión Elfo", elfLoading: "Por favor, espera hasta 30 segundos para que los elfos hagan su magia..."}, 
+    vote:{title:"Voto | Encuestas | Trivia",voteBtn:"Votar",voted:"Votado", uglySweater: "Suéter Feo", polls: "Encuestas", trivia: "Trivia"}, 
     admin:{dashboard:"Panel",restart:"Reiniciar",exit:"Salir"}, 
     welcome:{join:"Unirse a la Fiesta"},
     profile:{
@@ -305,7 +392,13 @@ const UI = {
         email: "Correo",
         phone: "Teléfono",
         submit: "¡Mantenme informado!",
-        trophies: "Salón de la Fama"
+        trophies: "Salón de la Fama",
+        calendar: "Agrega el 5 de diciembre de 2026 para la fiesta del próximo año",
+        elfSelf: "Tu Versión Elfo",
+        selfieChallenge: "Reto de Selfies",
+        userPhotos: "Fotos del Usuario",
+        backToParty: "Volver a la Fiesta",
+        backToList: "← Volver a la Lista"
     },
     install: {
         title: "Añadir a Pantalla de Inicio",
@@ -319,7 +412,10 @@ const UI = {
             "Toca **Añadir** arriba a la derecha."
         ],
         gotIt: "¡Entendido!"
-    }
+    },
+    photos: { download: "Descargar Todo" },
+    hunt: { progress: "Progreso" },
+    drinks: { title: "Bebidas" }
   }
 };
 
@@ -329,11 +425,18 @@ const getTx = (obj: any, key: string, lang: 'en' | 'es') => {
     return obj[key];
 };
 
-const Header = ({ title, rightAction, subHeader }: { title: React.ReactNode, rightAction?: React.ReactNode, subHeader?: React.ReactNode }) => (
-  <div className="bg-white/90 backdrop-blur-md flex flex-col z-20 shadow-sm relative rounded-b-3xl">
-    <div className="p-4 flex justify-between items-center h-24">
-        <div className="text-4xl font-bold font-sweater text-red-800 truncate leading-none drop-shadow-sm">{title}</div>
-        <div className="flex items-center gap-2">{rightAction}</div>
+const Header = ({ title, rightAction, subHeader, onBack }: { title: React.ReactNode, rightAction?: React.ReactNode, subHeader?: React.ReactNode, onBack?: () => void }) => (
+  <div className="bg-white/90 backdrop-blur-md flex flex-col z-20 shadow-sm relative rounded-b-3xl shrink-0">
+    <div className="p-4 flex justify-between items-center h-20">
+        <div className="flex items-center gap-2 overflow-hidden">
+            {onBack && (
+                <button onClick={onBack} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition-colors mr-1">
+                    <span className="text-xl font-bold text-gray-700">←</span>
+                </button>
+            )}
+            <div className="text-3xl font-bold font-sweater text-red-800 truncate leading-tight pb-1 drop-shadow-sm">{title}</div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">{rightAction}</div>
     </div>
     {subHeader && <div className="px-6 pb-4">{subHeader}</div>}
   </div>
@@ -362,7 +465,6 @@ const SnowFall = ({ className = "fixed inset-0 z-10" }: { className?: string }) 
   );
 };
 
-// Advanced Canvas based snow for AR
 const SnowFallCanvas = ({ intensity = 50, width, height }: { intensity: number, width: number, height: number }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     
@@ -373,14 +475,14 @@ const SnowFallCanvas = ({ intensity = 50, width, height }: { intensity: number, 
         if (!ctx) return;
         
         let flakes: any[] = [];
-        const numFlakes = intensity * 5; // MORE NOTICEABLE
+        const numFlakes = intensity * 5; 
 
         for (let i = 0; i < numFlakes; i++) {
             flakes.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
                 r: Math.random() * 4 + 1,
-                d: Math.random() * numFlakes // density
+                d: Math.random() * numFlakes 
             });
         }
         
@@ -484,6 +586,17 @@ const SurprisePopup = ({ type, onClose }: { type: 'VILLAGE' | 'HOUSE', onClose: 
   </div>
 );
 
+const SelfieModal = ({ onClose }: { onClose: () => void }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
+    <div className="bg-white p-8 rounded-3xl text-center max-w-sm w-full shadow-2xl border-4 border-blue-600 relative" onClick={e=>e.stopPropagation()}>
+       <img src="https://media.giphy.com/media/l1AvyLF0Sdg6wSZZS/giphy.gif" alt="Snowman" className="w-full rounded-lg mb-4" />
+       <h2 className="text-2xl font-bold font-sweater text-blue-700 mb-2 leading-tight">There’s snow place like a party with you!</h2>
+       <p className="text-lg font-bold text-gray-700 mb-6">You look ice today!</p>
+       <Button onClick={onClose} className="w-full bg-blue-600 text-white py-3 text-xl rounded-xl shadow-lg">Cool!</Button>
+    </div>
+  </div>
+);
+
 const InstallModal = ({ onClose, lang }: { onClose: () => void, lang: 'en'|'es' }) => {
   const t = UI[lang].install;
 
@@ -507,6 +620,113 @@ const InstallModal = ({ onClose, lang }: { onClose: () => void, lang: 'en'|'es' 
   );
 };
 
+// Avatar Editor Component for Reuse
+const AvatarEditor = ({ onSave, label }: { onSave: (f:File) => void, label: string }) => {
+    const [img, setImg] = useState<string|null>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [scale, setScale] = useState(1);
+    const [pos, setPos] = useState({x:0, y:0});
+    const [drag, setDrag] = useState(false);
+    const [start, setStart] = useState({x:0,y:0});
+    const [saved, setSaved] = useState(false);
+
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if(e.target.files?.[0]) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                setImg(ev.target?.result as string);
+                setScale(1); setPos({x:0,y:0});
+                setSaved(false); // Reset saved state when new image loaded
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
+
+    const draw = () => {
+        const c = canvasRef.current;
+        if(!c || !img) return;
+        const ctx = c.getContext('2d');
+        if(!ctx) return;
+        
+        const image = new Image();
+        image.src = img;
+        image.onload = () => {
+             ctx.clearRect(0,0,c.width,c.height);
+             
+             // Draw Mask (Circle)
+             ctx.save();
+             ctx.beginPath();
+             ctx.arc(c.width/2, c.height/2, c.width/2, 0, Math.PI*2);
+             ctx.clip();
+             
+             // Draw Image
+             const iw = image.width * scale;
+             const ih = image.height * scale;
+             const ix = (c.width - iw)/2 + pos.x;
+             const iy = (c.height - ih)/2 + pos.y;
+             ctx.drawImage(image, ix, iy, iw, ih);
+             
+             ctx.restore();
+             
+             // Draw Border
+             ctx.beginPath();
+             ctx.arc(c.width/2, c.height/2, c.width/2, 0, Math.PI*2);
+             ctx.strokeStyle = '#0B3D2E';
+             ctx.lineWidth = 4;
+             ctx.stroke();
+        };
+    };
+
+    useEffect(draw, [img, scale, pos]);
+
+    const handleSave = async () => {
+         const c = canvasRef.current;
+         if(!c) return;
+         c.toBlob(async (b) => {
+             if(b) {
+                 const file = new File([b], "avatar.jpg", {type:"image/jpeg"});
+                 const compressed = await compressImage(file);
+                 onSave(compressed);
+                 setSaved(true);
+             }
+         });
+    };
+
+    return (
+        <div className="w-full flex flex-col items-center gap-4">
+             {!img ? (
+                 <label className="w-64 h-64 bg-gray-50 rounded-full flex items-center justify-center border-4 border-dashed border-[#0B3D2E] cursor-pointer hover:bg-green-50 transition-colors group">
+                    <div className="flex flex-col items-center text-[#0B3D2E] group-hover:scale-110 transition-transform">
+                        <IconCamera className="w-10 h-10"/>
+                        <span className="text-[10px] font-bold uppercase mt-1">{label}</span>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFile}/>
+                 </label>
+             ) : (
+                 <div className="flex flex-col gap-4">
+                     <canvas 
+                        ref={canvasRef} 
+                        width={256} height={256} 
+                        className="w-64 h-64 rounded-full cursor-move touch-none bg-gray-100"
+                        onMouseDown={e=>{setDrag(true);setStart({x:e.clientX-pos.x,y:e.clientY-pos.y})}}
+                        onMouseMove={e=>{if(drag)setPos({x:e.clientX-start.x,y:e.clientY-start.y})}}
+                        onMouseUp={()=>setDrag(false)}
+                        onTouchStart={e=>{setDrag(true);setStart({x:e.touches[0].clientX-pos.x,y:e.touches[0].clientY-pos.y})}}
+                        onTouchMove={e=>{if(drag)setPos({x:e.touches[0].clientX-start.x,y:e.touches[0].clientY-start.y})}}
+                        onTouchEnd={()=>setDrag(false)}
+                     />
+                     {!saved && (
+                        <>
+                            <input type="range" min="0.5" max="3" step="0.1" value={scale} onChange={e=>setScale(Number(e.target.value))} className="w-64"/>
+                            <Button onClick={handleSave} className="bg-green-700 text-white">Save Photo</Button>
+                        </>
+                     )}
+                 </div>
+             )}
+        </div>
+    );
+};
+
 const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: any) => void }) => {
   const [name, setName] = useState(''); 
   const [photo, setPhoto] = useState<File|null>(null); 
@@ -518,10 +738,14 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
     if(!name || !photo || !name.trim().includes(' ')) return alert(lang === 'en' ? "First and Last Name Required!" : "¡Se requiere nombre y apellido!");
     setLoad(true);
     try {
+      const compressed = await compressImage(photo);
       const sRef = firebaseStorage.ref(storage, `profiles/${fbUser.uid}.jpg`);
-      await firebaseStorage.uploadBytes(sRef, photo);
+      await firebaseStorage.uploadBytes(sRef, compressed);
       const url = await firebaseStorage.getDownloadURL(sRef);
-      const uData = { id: fbUser.uid, name, photo: url, email: fbUser.email||'', phone: fbUser.phoneNumber||'', language: lang, timestamp: Date.now(), votesReceived: 0, huntProgress: {}, hostComment: '', hasVotedForId: null, quizScore: 0, quizTotalAttempted: 0 };
+      const uData: User = { 
+        id: fbUser.uid, name, photo: url, email: fbUser.email||'', phone: fbUser.phoneNumber||'', language: lang, timestamp: Date.now(), votesReceived: 0, huntProgress: {}, hostComment: '', hasVotedForId: null, quizScore: 0, quizTotalAttempted: 0,
+        answeredQuizIds: [], selfieProgress: {}, elfGenerations: []
+      };
       await setDoc(doc(db, 'users', fbUser.uid), uData);
       const g = await getDoc(doc(db,'games','g1'));
       if(!g.exists()){ const b = writeBatch(db); INITIAL_GAMES.forEach(x=>b.set(doc(db,'games',x.id),x)); INITIAL_POLLS.forEach(x=>b.set(doc(db,'polls',x.id),x)); INITIAL_HUNTS.forEach(x=>b.set(doc(db,'hunt_items',x.id),x)); await b.commit(); }
@@ -532,13 +756,13 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 max-w-lg mx-auto bg-white">
        <div className="absolute top-4 right-4 flex gap-2">
-            <button onClick={()=>setLang('en')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors ${lang==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
-            <button onClick={()=>setLang('es')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors ${lang==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
+            <button onClick={()=>setLang('en')} className={`px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${lang==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
+            <button onClick={()=>setLang('es')} className={`px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${lang==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
       </div>
       <div className="w-full flex flex-row items-center justify-center gap-4 mb-8 mt-12 px-4">
-          <img src={LOGO_URL} className="w-32 h-32 object-contain"/>
+          <img src={LOGO_URL} className="w-32 h-32 object-contain" alt="Logo"/>
           <div className="text-left flex-1">
-              <h1 className="text-4xl md:text-6xl font-sweater font-bold text-red-700 leading-none drop-shadow-sm">MERRY<br/>CHRISTMAS</h1>
+              <h1 className="text-4xl md:text-5xl font-sweater font-bold text-red-700 leading-none drop-shadow-sm">MERRY<br/>CHRISTMAS</h1>
               <p className="text-[#0B3D2E] font-bold text-xs tracking-[0.2em] mt-2">FRUTH BE TOLD APP</p>
           </div>
       </div>
@@ -547,10 +771,13 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
             <label className="block font-bold text-[#0B3D2E] text-xs uppercase mb-2 tracking-wide">{lang === 'en' ? 'First and Last Name' : 'Nombre y Apellido'}</label>
             <input value={name} onChange={e=>setName(e.target.value.replace(/\b\w/g, c=>c.toUpperCase()))} placeholder={lang === 'en' ? "Santa Claus" : "Papá Noel"} className="w-full p-4 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold bg-gray-50 text-gray-900 focus:border-[#0B3D2E] outline-none transition-colors placeholder:text-gray-300"/>
         </div>
-        <label className="block w-64 h-64 mx-auto bg-gray-50 rounded-full flex items-center justify-center border-4 border-dashed border-[#0B3D2E] cursor-pointer overflow-hidden relative hover:bg-green-50 transition-colors group">
-            {prev ? <img src={prev} className="w-full h-full object-cover"/> : <div className="flex flex-col items-center text-[#0B3D2E] group-hover:scale-110 transition-transform"><IconCamera className="w-10 h-10"/><span className="text-[10px] font-bold uppercase mt-1">{lang==='en'?'Upload Photo':'Subir Foto'}</span></div>}
-            <input type="file" onChange={e=>{if(e.target.files?.[0]){setPhoto(e.target.files[0]);setPrev(URL.createObjectURL(e.target.files[0]))}}} className="hidden" accept="image/*"/>
-        </label>
+        
+        {/* Avatar Editor Replacement */}
+        <AvatarEditor 
+            onSave={(file) => { setPhoto(file); setPrev(URL.createObjectURL(file)); }}
+            label={lang==='en'?'Upload Photo':'Subir Foto'}
+        />
+
         <div className="relative group pt-2">
             <div className="absolute inset-0 bg-red-800 rounded-lg translate-y-1 transform transition-transform group-active:translate-y-0.5"></div>
             <button onClick={join} disabled={load} className="relative w-full bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 text-white h-16 rounded-lg text-xl shadow-lg border-x-8 border-transparent border-t-2 border-red-400 font-sweater tracking-wide uppercase transform transition-transform active:translate-y-0.5 flex items-center justify-center gap-2">
@@ -563,18 +790,328 @@ const CreateProfile = ({ fbUser, onJoin }: { fbUser: FirebaseUser, onJoin: (u: a
   );
 };
 
+const SelfieGameCard = ({ user, lang }: { user: User, lang: 'en'|'es' }) => {
+    const [uploading, setUploading] = useState<string | null>(null);
+    const [showModal, setShowModal] = useState(false);
+    const [showRules, setShowRules] = useState(false);
+
+    const handleUpload = async (challengeId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.[0]) {
+            setUploading(challengeId);
+            try {
+                const file = e.target.files[0];
+                const compressed = await compressImage(file);
+                const sRef = firebaseStorage.ref(storage, `selfie_challenges/${user.id}/${challengeId}.jpg`);
+                await firebaseStorage.uploadBytes(sRef, compressed);
+                const url = await firebaseStorage.getDownloadURL(sRef);
+                
+                // 1. Update User Progress
+                await updateDoc(doc(db, 'users', user.id), { [`selfieProgress.${challengeId}`]: url });
+
+                // 2. Add to Photos Gallery automatically
+                const challengeTitle = SELFIE_CHALLENGES.find(c => c.id === challengeId)?.title || 'Selfie Challenge';
+                await addDoc(collection(db, 'photos'), {
+                    url: url,
+                    uploaderId: user.id,
+                    timestamp: Date.now(),
+                    caption: challengeTitle
+                });
+                
+                // Check if all done
+                const currentProgress = user.selfieProgress || {};
+                const doneCount = Object.keys(currentProgress).length + 1; // +1 because state might update slow
+                if(doneCount >= SELFIE_CHALLENGES.length) {
+                    setShowModal(true);
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Upload failed. Try again.");
+            }
+            setUploading(null);
+        }
+    };
+
+    return (
+        <>
+        {showModal && <SelfieModal onClose={()=>setShowModal(false)} />}
+        <Card id="selfie-challenge" className="border-2 border-red-100 p-0 overflow-hidden">
+            <div className="bg-red-700 text-white p-3 font-bold text-lg flex items-center gap-2 cursor-pointer" onClick={()=>setShowRules(true)}>
+                <IconCamera className="w-5 h-5"/>
+                <span className="underline decoration-white/50 underline-offset-4">{UI[lang].games.selfie}</span>
+                <span className="bg-white/20 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">i</span>
+            </div>
+            <div className="p-4 space-y-4">
+                {SELFIE_CHALLENGES.map((c) => {
+                    const doneUrl = user.selfieProgress?.[c.id];
+                    return (
+                        <div key={c.id} className="flex gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <div className="flex-1">
+                                <h4 className="font-bold text-gray-900 text-sm mb-1">{getTx(c,'title',lang)}</h4>
+                                <p className="text-xs text-gray-600">{getTx(c,'desc',lang)}</p>
+                            </div>
+                            <label className={`relative w-16 h-16 rounded-lg flex items-center justify-center shrink-0 cursor-pointer overflow-hidden border-2 ${doneUrl ? 'border-green-500' : 'border-dashed border-gray-300 bg-white hover:bg-gray-100'}`}>
+                                {uploading === c.id ? (
+                                    <div className="animate-spin h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full" />
+                                ) : doneUrl ? (
+                                    <>
+                                        <img src={doneUrl} className="w-full h-full object-cover opacity-80" alt="Done" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                            <IconCheck className="w-8 h-8 text-white drop-shadow-md" />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <IconCamera className="w-6 h-6 text-gray-400" />
+                                )}
+                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUpload(c.id, e)} disabled={!!uploading} />
+                            </label>
+                        </div>
+                    );
+                })}
+            </div>
+        </Card>
+        {showRules && (
+             <div className="fixed inset-0 z-[150] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm animate-in fade-in" onClick={()=>setShowRules(false)}>
+                <div className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
+                    <h3 className="text-xl font-bold font-sweater text-red-700 mb-4">{UI[lang].games.selfie} {UI[lang].games.rules}</h3>
+                    <p className="text-gray-700 leading-relaxed text-sm mb-6">
+                        {lang === 'en' 
+                        ? "Complete the checklist by taking a selfie for each prompt! Click the camera icon next to a challenge to upload your photo. Once you complete all 10 challenges, a special surprise awaits you!" 
+                        : "¡Completa la lista tomando una selfie para cada indicación! Haz clic en el icono de la cámara junto a un desafío para subir tu foto. ¡Una vez que completes los 10 desafíos, te espera una sorpresa especial!"}
+                    </p>
+                    <Button onClick={()=>setShowRules(false)} className="w-full bg-red-700 text-white">{UI[lang].install.gotIt}</Button>
+                </div>
+            </div>
+        )}
+        </>
+    );
+};
+
+const ElfGameCard = ({ user, lang, setLightboxUrl }: { user: User, lang: 'en'|'es', setLightboxUrl: (s:string) => void }) => {
+    const [generating, setGenerating] = useState(false);
+    const [showRules, setShowRules] = useState(false);
+    const [originalImg, setOriginalImg] = useState<string|null>(null);
+    const [generatedImg, setGeneratedImg] = useState<string|null>(user.elfImage || null);
+    
+    // Cleanup on unmount to prevent memory leaks/state updates
+    useEffect(() => {
+        return () => setGenerating(false);
+    }, []);
+
+    const handleGenerate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.[0]) return;
+        
+        const file = e.target.files[0];
+        
+        // 1. Set Left Box Immediately
+        const originalUrl = URL.createObjectURL(file);
+        setOriginalImg(originalUrl);
+        setGenerating(true);
+
+        try {
+            // Compress
+            const compressedFile = await compressImage(file);
+            
+            // Read as Base64 for API
+            const reader = new FileReader();
+            reader.readAsDataURL(compressedFile);
+            
+            reader.onloadend = async () => {
+                const base64Data = (reader.result as string).split(',')[1];
+                
+                // 2. Call Gemini API
+                const ai = new GoogleGenAI({ apiKey: firebaseConfig.apiKey });
+                
+                const prompt = "Transform this person into a realistic Christmas Elf. Keep the user's facial structure, skin tone, and expression exactly as they are in the input photo. Blend them realistically into a high-quality elf costume (green/red velvet) with pointed ears. The background should be a festive, snowy North Pole workshop. Do NOT create a cartoon or 3D render; it must look like a photograph.";
+                
+                // Set timeout
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 30000));
+                
+                const apiPromise = ai.models.generateContent({
+                    model: 'gemini-3-pro-image-preview',
+                    contents: {
+                        parts: [
+                            { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+                            { text: prompt }
+                        ]
+                    }
+                });
+
+                const response: any = await Promise.race([apiPromise, timeoutPromise]);
+
+                // Extract Image from Response
+                let generatedBase64 = null;
+                if (response.candidates?.[0]?.content?.parts) {
+                    for (const part of response.candidates[0].content.parts) {
+                        if (part.inlineData && part.inlineData.data) {
+                            generatedBase64 = part.inlineData.data;
+                            break;
+                        }
+                    }
+                }
+
+                if (!generatedBase64) {
+                    throw new Error("No image generated by AI");
+                }
+
+                // 3. Watermark
+                const img = new Image();
+                img.src = `data:image/jpeg;base64,${generatedBase64}`;
+                await new Promise(r => img.onload = r);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if(!ctx) throw new Error("Canvas ctx error");
+
+                ctx.drawImage(img, 0, 0);
+
+                // Festive Watermark
+                const fontSize = Math.max(32, canvas.width * 0.06);
+                ctx.font = `bold ${fontSize}px 'Berkshire Swash', cursive, serif`;
+                
+                // Text 1: Red with White Stroke
+                const text1 = "Fruth Be Told...";
+                const text2 = "You are elfing awesome!";
+                
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.lineWidth = fontSize / 8;
+                ctx.lineJoin = "round";
+                ctx.strokeStyle = "white";
+
+                const y1 = canvas.height - (fontSize * 2.2);
+                const y2 = canvas.height - (fontSize * 1.0);
+
+                // Stroke 1
+                ctx.strokeText(text1, canvas.width / 2, y1);
+                // Fill 1 (Red)
+                ctx.fillStyle = "#D42426";
+                ctx.fillText(text1, canvas.width / 2, y1);
+
+                // Stroke 2
+                ctx.strokeText(text2, canvas.width / 2, y2);
+                // Fill 2 (Green)
+                ctx.fillStyle = "#228B22";
+                ctx.fillText(text2, canvas.width / 2, y2);
+
+                // 4. Upload
+                canvas.toBlob(async (blob) => {
+                    if(!blob) return;
+                    const sRef = firebaseStorage.ref(storage, `elf_results/${user.id}_${Date.now()}.jpg`);
+                    await firebaseStorage.uploadBytes(sRef, blob);
+                    const url = await firebaseStorage.getDownloadURL(sRef);
+                    
+                    // Update State
+                    setGeneratedImg(url);
+                    setGenerating(false);
+
+                    // DB Updates - SAVE TO ARRAY (Multiple Variations)
+                    await updateDoc(doc(db, 'users', user.id), { 
+                        elfImage: url,
+                        elfGenerations: arrayUnion(url)
+                    });
+                    
+                    await addDoc(collection(db, 'photos'), {
+                        url: url,
+                        uploaderId: user.id,
+                        timestamp: Date.now(),
+                        caption: "Elf Yourself Result!"
+                    });
+                }, 'image/jpeg', 0.9);
+            };
+
+        } catch (err) {
+            console.error("Elf Error:", err);
+            alert("Elfing failed. API Error or Timeout.");
+            setGenerating(false);
+        }
+    };
+
+    return (
+        <>
+        <Card id="elf-yourself" className="border-2 border-green-100 p-0 overflow-hidden mt-6">
+             <div className="bg-green-700 text-white p-3 font-bold text-lg flex items-center cursor-pointer" onClick={()=>setShowRules(true)}>
+                <span className="underline decoration-white/50 underline-offset-4">{UI[lang].games.elf}</span>
+                <span className="bg-white/20 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold ml-2">i</span>
+            </div>
+            
+            <div className="p-4 grid grid-cols-2 gap-4">
+                {/* Box 1: Left - Input */}
+                <div className="aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center relative overflow-hidden group hover:bg-green-50 transition-colors">
+                    {originalImg ? (
+                        <div className="relative w-full h-full">
+                            <img src={originalImg} className="w-full h-full object-cover" alt="Original" />
+                            <label className="absolute inset-0 bg-black/20 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                                <IconCamera className="w-8 h-8 text-white drop-shadow"/>
+                                <input type="file" className="hidden" accept="image/*" onChange={handleGenerate} disabled={generating} />
+                            </label>
+                        </div>
+                    ) : (
+                        <label className="absolute inset-0 cursor-pointer flex flex-col items-center justify-center z-10">
+                            {generating ? (
+                                <div className="animate-spin h-8 w-8 border-4 border-green-600 border-t-transparent rounded-full mb-2"></div>
+                            ) : (
+                                <>
+                                    <IconCamera className="w-8 h-8 text-green-700 mb-2 group-hover:scale-110 transition-transform"/>
+                                    <span className="text-xs font-bold text-green-800 uppercase text-center px-2 leading-tight">{UI[lang].games.elfInput}</span>
+                                </>
+                            )}
+                            <input type="file" className="hidden" accept="image/*" onChange={handleGenerate} disabled={generating} />
+                        </label>
+                    )}
+                </div>
+
+                {/* Box 2: Right - Result */}
+                <div className="flex flex-col gap-1 h-full">
+                    <div className={`flex-1 bg-green-50 border-2 border-green-200 rounded-xl flex items-center justify-center overflow-hidden relative min-h-[140px] ${generatedImg ? 'cursor-pointer hover:opacity-90' : ''}`} onClick={()=>generatedImg && setLightboxUrl(generatedImg)}>
+                        {generating ? (
+                             <div className="flex flex-col items-center justify-center animate-pulse p-2 text-center">
+                                <span className="text-4xl mb-2">🎄</span>
+                                <span className="text-[10px] font-bold text-green-800 leading-tight">{UI[lang].games.elfLoading}</span>
+                            </div>
+                        ) : generatedImg ? (
+                            <img src={generatedImg} className="w-full h-full object-cover" alt="Elf Result" />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center opacity-40">
+                                <span className="text-green-800 font-sweater text-4xl mb-1">?</span>
+                                <span className="text-[10px] font-bold text-green-800 uppercase text-center px-2">{UI[lang].games.elfResult}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </Card>
+        {showRules && (
+             <div className="fixed inset-0 z-[150] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm animate-in fade-in" onClick={()=>setShowRules(false)}>
+                <div className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
+                    <h3 className="text-xl font-bold font-sweater text-green-700 mb-4">{UI[lang].games.elf} {UI[lang].games.rules}</h3>
+                    <p className="text-gray-700 leading-relaxed text-sm mb-6">
+                        {lang === 'en' 
+                        ? "Take a selfie and let our AI transform you into a realistic Christmas Elf! Your result will be automatically added to the party photo album with a special Fruth Be Told frame." 
+                        : "¡Tómate una selfie y deja que nuestra IA te transforme en un elfo navideño realista! Tu resultado se agregará automáticamente al álbum de fotos de la fiesta con un marco especial."}
+                    </p>
+                    <Button onClick={()=>setShowRules(false)} className="w-full bg-green-700 text-white">{UI[lang].install.gotIt}</Button>
+                </div>
+            </div>
+        )}
+        </>
+    );
+};
+
 const GameCard = ({ g, user, users, join, win, leave, lang }: any) => {
   const [c1, c2] = g.signups.slice(0,2); const [pid, setPid] = useState(''); const [showP, setShowP] = useState(false); const [hist, setHist] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const t = UI[lang].games;
   
   const updateScore = async (sid: string, delta: number) => {
-      const cur = g.scores?.[sid] || 0;
-      await updateDoc(doc(db,'games',g.id), { [`scores.${sid}`]: Math.max(0, cur + delta) });
+      // ATOMIC INCREMENT
+      await updateDoc(doc(db,'games',g.id), { [`scores.${sid}`]: increment(delta) });
   };
 
   return (
-    <>
+    <div className="p-0">
     <Card className="border-2 border-red-100 p-0 overflow-hidden cursor-pointer active:scale-[0.99] transition-transform" onClick={()=>setShowRules(true)}>
        <div className="bg-red-700 text-white p-3 font-bold flex justify-between items-center relative group">
            <div className="flex items-center gap-2">
@@ -597,7 +1134,7 @@ const GameCard = ({ g, user, users, join, win, leave, lang }: any) => {
                             <>
                                 {p.wins>0 && <div className="absolute top-0 right-0 bg-yellow-400 text-xs px-2 py-1 font-bold rounded-bl shadow-sm">🏆 {p.wins}</div>}
                                 <div className="flex -space-x-6 mb-3 mt-1">
-                                    {p.players.map((uid:string)=><img key={uid} src={users.find((u:any)=>u.id===uid)?.photo} className="w-20 h-20 rounded-full border-4 border-white object-cover shadow-md bg-gray-200"/>)}
+                                    {p.players.map((uid:string)=><img key={uid} src={users.find((u:any)=>u.id===uid)?.photo} className="w-20 h-20 rounded-full border-4 border-white object-cover shadow-md bg-gray-200" alt="Player"/>)}
                                 </div>
                                 <div className="font-bold text-xs text-center mb-2 text-gray-800 leading-tight">{p.label}</div>
                                 {g.title === 'Corn Hole' && (
@@ -643,11 +1180,11 @@ const GameCard = ({ g, user, users, join, win, leave, lang }: any) => {
             </div>
         </div>
     )}
-    </>
+    </div>
   );
 };
 
-const GamesScreen = ({ games, user, users }: any) => {
+const GamesScreen = ({ games, user, users, setLightboxUrl, scrollTarget }: any) => {
   const join = async (gid:string, pid:string|null) => {
     const g = games.find((x:any)=>x.id===gid);
     const partner = pid ? users.find((u:any)=>u.id===pid) : null;
@@ -664,16 +1201,56 @@ const GamesScreen = ({ games, user, users }: any) => {
   };
   const leave = async (gid:string, sid:string) => updateDoc(doc(db,'games',gid), { signups:games.find((x:any)=>x.id===gid).signups.filter((s:any)=>s.id!==sid) });
   const lang = user.language || 'en';
+
+  useEffect(() => {
+    if (scrollTarget) {
+        const element = document.getElementById(scrollTarget);
+        if (element) {
+            setTimeout(() => {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 300); // Slight delay for render
+        }
+    } else {
+        // Handled by parent mainRef, but safe to keep window scroll too
+        window.scrollTo(0,0);
+    }
+  }, [scrollTarget]);
+
   return (
-    <div className="space-y-6 pb-24 pt-4">{games.map((g:any)=><GameCard key={g.id} g={g} user={user} users={users} join={join} win={win} leave={leave} lang={lang}/>)}</div>
+    <div className="space-y-6 pb-24 pt-4">
+        {games.map((g:any)=><GameCard key={g.id} g={g} user={user} users={users} join={join} win={win} leave={leave} lang={lang}/>)}
+        <SelfieGameCard user={user} lang={lang} />
+        <ElfGameCard user={user} lang={lang} setLightboxUrl={setLightboxUrl} />
+    </div>
   );
 };
 
-const AdminDashboard = ({ users, polls, hunts, games, onClose }: any) => {
+// Collapsible Component for Admin Sections
+const AdminAccordion = ({ title, children, defaultOpen = true, className = "" }: any) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+    return (
+        <Card className={`p-0 overflow-hidden ${className}`}>
+            <div 
+                onClick={() => setIsOpen(!isOpen)} 
+                className="bg-gray-100 p-3 flex justify-between items-center cursor-pointer hover:bg-gray-200 transition-colors"
+            >
+                <span className="font-bold text-gray-700 uppercase text-xs">{title}</span>
+                <span className="text-gray-500 font-bold">{isOpen ? '▲' : '▼'}</span>
+            </div>
+            {isOpen && <div className="p-0">{children}</div>}
+        </Card>
+    );
+};
+
+const AdminDashboard = ({ users, polls, hunts, games, onClose, setLightboxUrl }: any) => {
   const [pass, setPass] = useState(''); const [auth, setAuth] = useState(false); const [tab, setTab] = useState('USERS');
   const [inspectUser, setInspectUser] = useState<any>(null);
   const [pq, spq] = useState(''); const [opts, setOpts] = useState([{id:'0',text:''}]);
   const [ht, sht] = useState(''); const [hType, sHType] = useState('VILLAGE'); const [hCat, sHCat] = useState('CHRISTMAS');
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhoto, setGuestPhoto] = useState<File|null>(null);
+  const [guestLoad, setGuestLoad] = useState(false);
   
   const categories = ['CHRISTMAS','DISNEY','TV & MOVIES','CREATURES','SCI-FI','ANIMALS','Questions','Hidden Items','Admin Added'];
 
@@ -687,26 +1264,226 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose }: any) => {
       await addDoc(collection(db,'hunt_items'), { text: ht, type, huntType: hType, category: hCat }); 
       sht(''); 
   };
+  
+  const createGuest = async () => {
+      if(!guestName || !guestPhoto) return alert("Name and Photo required");
+      setGuestLoad(true);
+      try {
+          const compressed = await compressImage(guestPhoto);
+          const id = `guest_${Date.now()}`;
+          const sRef = firebaseStorage.ref(storage, `profiles/${id}.jpg`);
+          await firebaseStorage.uploadBytes(sRef, compressed);
+          const url = await firebaseStorage.getDownloadURL(sRef);
+          
+          const guestUser: User = {
+              id,
+              name: guestName,
+              photo: url,
+              email: '',
+              phone: '',
+              isGuest: true, // FLAG
+              timestamp: Date.now(),
+              votesReceived: 0,
+              huntProgress: {},
+              hostComment: '',
+              hasVotedForId: null,
+              quizScore: 0,
+              quizTotalAttempted: 0,
+              language: 'en',
+              elfGenerations: []
+          };
+          
+          await setDoc(doc(db, 'users', id), guestUser);
+          setShowGuestModal(false);
+          setGuestName('');
+          setGuestPhoto(null);
+          alert("Guest Added!");
+      } catch (err) {
+          console.error(err);
+          alert("Error adding guest");
+      }
+      setGuestLoad(false);
+  };
+  
+  // Future Party CSV Export
+  const downloadFutureCSV = () => {
+      const futureUsers = users.filter((u:User) => u.futureEmail || u.futurePhone);
+      if(!futureUsers.length) return alert("No signups yet.");
+      
+      let csv = "Name,Email,Phone\n";
+      futureUsers.forEach((u:User) => {
+          csv += `"${u.name}","${u.futureEmail || ''}","${u.futurePhone || ''}"\n`;
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "future_party_signups.csv";
+      a.click();
+  };
 
   const totalVotes = users.reduce((acc:number, u:any) => acc + (u.votesReceived || 0), 0);
+  
+  // Leaderboard calcs
+  const triviaLeaders = [...users].sort((a:any, b:any) => (b.quizScore || 0) - (a.quizScore || 0)).slice(0, 5);
+  const huntLeaders = [...users].sort((a:any, b:any) => {
+      const aCount = Object.keys(a.huntProgress||{}).length;
+      const bCount = Object.keys(b.huntProgress||{}).length;
+      return bCount - aCount;
+  }).slice(0, 5);
 
   if(!auth) return <div className="p-6 pt-20 space-y-4 max-w-sm mx-auto"><h1 className="text-4xl font-sweater text-red-700 mb-4 text-center">Admin Login</h1><Input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password"/><Button onClick={()=>pass==='kokomo'?setAuth(true):alert('Wrong')} className="bg-red-600 text-white mt-4 w-full">Login</Button><Button variant="outline" onClick={onClose} className="mt-2 w-full">Exit</Button></div>;
   
-  if(inspectUser) return <div className="fixed inset-0 z-50 bg-white overflow-y-auto"><ProfileScreen user={inspectUser} users={users} games={games} hunts={hunts} onClose={()=>setInspectUser(null)} readOnly /></div>;
+  if(inspectUser) return <div className="fixed inset-0 z-50 bg-white h-full w-full overflow-hidden"><ProfileScreen user={inspectUser} users={users} games={games} hunts={hunts} onClose={()=>setInspectUser(null)} setLightboxUrl={setLightboxUrl} readOnly /></div>;
 
   return (
     <div className="pb-20 space-y-6 pt-2">
-      <div className="flex gap-1 overflow-x-auto border-b border-gray-300 py-4 px-3 no-scrollbar bg-white/50 backdrop-blur-sm rounded-xl mx-2 mt-2">
-          {['USERS','PROGRESS','GUESTBOOK','HUNT','POLLS','DATA'].map(t=><button key={t} onClick={()=>setTab(t)} className={`px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap border transition-all shadow-sm ${tab===t?'bg-red-700 text-white border-red-700 scale-105':'bg-white text-gray-900 border-gray-300 hover:bg-gray-100'}`}>{t}</button>)}
+      <div className="bg-white/50 backdrop-blur-sm mx-2 mt-2 rounded-xl py-4 border border-gray-200 shadow-sm">
+        <div className="flex gap-1 overflow-x-auto px-3 no-scrollbar">
+            {['USERS','PROGRESS','GUESTBOOK','HUNT','POLLS','FUTURE','DATA'].map(t=><button key={t} onClick={()=>setTab(t)} className={`px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap border transition-all shadow-sm ${tab===t?'bg-red-700 text-white border-red-700 scale-105':'bg-white text-gray-900 border-gray-300 hover:bg-gray-100'}`}>{t}</button>)}
+        </div>
       </div>
-      {tab==='USERS' && <div className="space-y-1">{users.map((u:any)=><div key={u.id} className="flex justify-between items-center p-2 border bg-white rounded"><button onClick={()=>setInspectUser(u)} className="flex items-center gap-3 text-left"><img src={u.photo} className="w-10 h-10 rounded-full border-2 border-gray-200 object-cover"/><span className="font-bold text-sm text-gray-800">{u.name}</span></button><button onClick={()=>deleteDoc(doc(db,'users',u.id))} className="text-red-500 text-xs border border-red-200 px-2 py-1 rounded">Delete</button></div>)}</div>}
-      {tab==='PROGRESS' && <div className="space-y-4">
-         <div className="bg-gray-50 p-2 rounded"><h3 className="font-bold text-xs text-center mb-2 text-gray-900">UGLY SWEATER LEADERBOARD</h3>{users.sort((a:any,b:any)=>b.votesReceived-a.votesReceived).slice(0,5).map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-1 border-b text-gray-900"><span className="font-bold">{i+1}. {u.name}</span><span>{u.votesReceived} Votes ({totalVotes ? Math.round((u.votesReceived/totalVotes)*100) : 0}%)</span></div>)}</div>
-         <div className="space-y-1"><div className="grid grid-cols-[1fr_1fr_1fr] text-xs font-bold px-2 text-gray-900"><span>User</span><span className="text-center">Village</span><span className="text-center">House</span></div>{users.map((u:any)=><div key={u.id} className="grid grid-cols-[1fr_1fr_1fr] items-center p-2 border-b bg-white"><div className="flex gap-2 items-center"><img src={u.photo} className="w-6 h-6 rounded-full"/><span className="text-xs font-bold truncate text-gray-900">{u.name}</span></div><div className="px-2"><div className="w-full bg-gray-200 h-2 rounded"><div className="bg-green-500 h-2 rounded" style={{width:`${getProg(u,'VILLAGE')}%`}}/></div><div className="text-[10px] text-center text-gray-600">{getProg(u,'VILLAGE')}%</div></div><div className="px-2"><div className="w-full bg-gray-200 h-2 rounded"><div className="bg-blue-500 h-2 rounded" style={{width:`${getProg(u,'HOUSE')}%`}}/></div><div className="text-[10px] text-center text-gray-600">{getProg(u,'HOUSE')}%</div></div></div>)}</div>
+      
+      {tab==='USERS' && <div className="space-y-4 px-2">
+        <Button onClick={()=>setShowGuestModal(true)} className="w-full bg-green-600 text-white text-sm font-bold shadow-md">+ Add Manual Guest</Button>
+        <AdminAccordion title="Registered Users & Guests" defaultOpen={true}>
+            <div className="divide-y divide-gray-100">
+                {users.map((u:any)=><div key={u.id} className="flex justify-between items-center p-3 bg-white hover:bg-gray-50 transition-colors">
+                    <button onClick={()=>setInspectUser(u)} className="flex items-center gap-3 text-left flex-1">
+                        <img src={u.photo} className="w-10 h-10 rounded-full border border-gray-200 object-cover" alt={u.name}/>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-sm text-gray-800">{u.name}</span>
+                            {u.isGuest && <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded font-bold w-fit mt-0.5">GUEST</span>}
+                        </div>
+                    </button>
+                    <button onClick={()=>deleteDoc(doc(db,'users',u.id))} className="text-red-500 text-xs border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 font-medium">Delete</button>
+                </div>)}
+            </div>
+        </AdminAccordion>
       </div>}
-      {tab==='GUESTBOOK' && <div className="space-y-2">{users.filter((u:any)=>u.hostComment).map((u:any)=><div key={u.id} className="p-3 border bg-white rounded"><div className="flex gap-2 mb-1"><img src={u.photo} className="w-6 h-6 rounded-full"/><span className="font-bold text-sm text-gray-900">{u.name}</span></div><p className="text-sm italic text-gray-900">"{u.hostComment}"</p></div>)}</div>}
-      {tab==='POLLS' && <div className="p-4 space-y-6"><div className="bg-white p-4 rounded border shadow-sm"><h3 className="font-bold text-sm mb-2 text-gray-900">Create Poll</h3><Input value={pq} onChange={e=>spq(e.target.value)} placeholder="Question"/><div className="space-y-2 mt-2">{opts.map((o,i)=><div key={i} className="flex gap-2"><Input value={o.text} onChange={e=>{const n=[...opts];n[i].text=e.target.value;setOpts(n)}} placeholder={`Option ${i+1}`} className="flex-1"/><Button variant="danger" onClick={()=>setOpts(opts.filter((_,idx)=>idx!==i))} className="px-3">X</Button></div>)}</div><Button variant="outline" onClick={()=>setOpts([...opts, {id:Date.now().toString(), text:''}])} className="w-full mt-2 text-xs">+ Add Option</Button><Button onClick={createPoll} className="bg-green-600 text-white w-full mt-4">Create Poll</Button></div><div className="space-y-2">{polls.map((p:any)=><div key={p.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center"><span className="text-xs font-bold truncate flex-1 text-gray-800">{p.question}</span><Button variant="danger" onClick={()=>deleteDoc(doc(db,'polls',p.id))} className="text-xs py-1 px-2">Del</Button></div>)}</div></div>}
-      {tab==='HUNT' && <div className="p-4 space-y-6"><div className="bg-white p-4 rounded border shadow-sm"><h3 className="font-bold text-sm mb-2 text-gray-900">Add Hunt Item</h3><Input value={ht} onChange={e=>sht(e.target.value)} placeholder="Item Name / Question"/><div className="flex gap-2 mt-2"><Button variant={hType==='VILLAGE'?'primary':'outline'} onClick={()=>sHType('VILLAGE')} className="flex-1 text-xs">Village</Button><Button variant={hType==='HOUSE'?'primary':'outline'} onClick={()=>sHType('HOUSE')} className="flex-1 text-xs">House</Button></div><select value={hCat} onChange={e=>sHCat(e.target.value)} className="w-full mt-2 p-2 border rounded bg-white text-gray-900 text-sm focus:border-red-500 outline-none"><option value="">Select Category...</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select><Button onClick={createHunt} className="bg-green-600 text-white w-full mt-4">Add Item</Button></div><div className="space-y-2 max-h-60 overflow-y-auto">{hunts.map((h:any)=><div key={h.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center"><span className="text-xs font-bold truncate flex-1 text-gray-800">{h.text} ({h.huntType}) [{h.type}]</span><Button variant="danger" onClick={()=>deleteDoc(doc(db,'hunt_items',h.id))} className="text-xs py-1 px-2">Del</Button></div>)}</div></div>}
+
+      {/* Guest Modal */}
+      {showGuestModal && (
+          <div className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm" onClick={()=>setShowGuestModal(false)}>
+              <div className="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4" onClick={e=>e.stopPropagation()}>
+                  <h3 className="font-bold text-lg text-gray-900">Add Guest User</h3>
+                  <Input value={guestName} onChange={e=>setGuestName(e.target.value)} placeholder="Guest Name" />
+                  <div className="flex justify-center">
+                    <AvatarEditor label="Guest Photo" onSave={setGuestPhoto} />
+                  </div>
+                  <Button onClick={createGuest} disabled={guestLoad} className="w-full bg-green-600 text-white mt-4">{guestLoad ? 'Adding...' : 'Create User'}</Button>
+                  <Button onClick={()=>setShowGuestModal(false)} variant="ghost" className="w-full">Cancel</Button>
+              </div>
+          </div>
+      )}
+
+      {tab==='FUTURE' && <div className="p-4 space-y-4">
+          <Button onClick={downloadFutureCSV} className="w-full bg-blue-600 text-white shadow-md">Download CSV Export</Button>
+          <div className="bg-white border rounded overflow-hidden">
+              <table className="w-full text-xs text-left">
+                  <thead className="bg-gray-100 text-gray-700 font-bold uppercase"><tr><th className="p-2">Name</th><th className="p-2">Email</th><th className="p-2">Phone</th></tr></thead>
+                  <tbody>
+                      {users.filter((u:User) => u.futureEmail || u.futurePhone).map((u:User) => (
+                          <tr key={u.id} className="border-t hover:bg-gray-50 text-gray-900">
+                              <td className="p-2 font-bold">{u.name}</td>
+                              <td className="p-2 text-gray-600">{u.futureEmail || '-'}</td>
+                              <td className="p-2 text-gray-600">{u.futurePhone || '-'}</td>
+                          </tr>
+                      ))}
+                  </tbody>
+              </table>
+          </div>
+      </div>}
+
+      {tab==='PROGRESS' && <div className="space-y-4">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             {/* Ugly Sweater */}
+             <AdminAccordion title="Ugly Sweater Leaderboard">
+                 {users.sort((a:any,b:any)=>b.votesReceived-a.votesReceived).slice(0,5).map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900"><div className="flex items-center gap-2"><span className="font-bold w-4">{i+1}</span><img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/><span className="font-bold">{u.name}</span></div><span>{u.votesReceived} Votes ({totalVotes ? Math.round((u.votesReceived/totalVotes)*100) : 0}%)</span></div>)}
+             </AdminAccordion>
+
+             {/* Trivia Leaderboard */}
+             <AdminAccordion title="Trivia Knowledge">
+                 {triviaLeaders.map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900"><div className="flex items-center gap-2"><span className="font-bold w-4">{i+1}</span><img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/><span className="font-bold">{u.name}</span></div><span className="font-black text-yellow-600 text-sm">{u.quizScore || 0} pts</span></div>)}
+             </AdminAccordion>
+             
+             {/* Scavenger Hunt Leaderboard */}
+             <div className="md:col-span-2">
+                 <AdminAccordion title="Scavenger Hunt Leaders">
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+                        {huntLeaders.map((u:any,i:number)=>{
+                            const totalFound = Object.keys(u.huntProgress||{}).length;
+                            return (
+                             <div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900 items-center">
+                                 <div className="flex items-center gap-2">
+                                     <span className="font-bold w-4 text-center">{i+1}</span>
+                                     <img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/>
+                                     <span className="font-bold">{u.name}</span>
+                                 </div>
+                                 <span className="font-black text-blue-600">{totalFound} Items Found</span>
+                             </div>
+                            )
+                        })}
+                     </div>
+                 </AdminAccordion>
+             </div>
+             
+             {/* Elf Gallery - Default Closed */}
+             <div className="md:col-span-2">
+                 <AdminAccordion title="Elf Gallery" defaultOpen={false}>
+                     <div className="grid grid-cols-4 gap-2 p-3">
+                         {users.filter((u:User) => u.elfGenerations && u.elfGenerations.length > 0).map((u: User) => (
+                             u.elfGenerations?.map((url, idx) => (
+                                <div key={`${u.id}_${idx}`} className="relative aspect-square cursor-pointer hover:opacity-80 rounded overflow-hidden border" onClick={()=>setLightboxUrl(url)}>
+                                    <img src={url} className="w-full h-full object-cover" alt="Elf" />
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] p-1 truncate text-center">{u.name}</div>
+                                </div>
+                             ))
+                         ))}
+                     </div>
+                 </AdminAccordion>
+             </div>
+
+             {/* Selfie Gallery - Default Closed */}
+             <div className="md:col-span-2">
+                 <AdminAccordion title="Selfie Challenge Gallery" defaultOpen={false}>
+                     <div className="grid grid-cols-2 gap-4 p-3">
+                         {users.map((u: User) => (
+                             Object.keys(u.selfieProgress || {}).length > 0 && (
+                                 <div key={u.id} className="border p-2 rounded bg-gray-50">
+                                     <div className="flex items-center gap-2 mb-2">
+                                         <img src={u.photo} className="w-6 h-6 rounded-full" alt="User"/>
+                                         <span className="text-xs font-bold text-gray-800 truncate">{u.name}</span>
+                                     </div>
+                                     <div className="grid grid-cols-3 gap-1">
+                                         {Object.entries(u.selfieProgress || {}).map(([cid, url]) => (
+                                             <img key={cid} src={url} className="w-full h-8 object-cover rounded cursor-pointer hover:opacity-80" alt="Selfie" onClick={()=>setLightboxUrl(url)} />
+                                         ))}
+                                     </div>
+                                 </div>
+                             )
+                         ))}
+                     </div>
+                 </AdminAccordion>
+             </div>
+         </div>
+         
+         <AdminAccordion title="Individual Hunt Progress" defaultOpen={true}>
+            <div className="grid grid-cols-[1fr_1fr_1fr] text-xs font-bold px-2 py-2 bg-gray-50 text-gray-900 border-b"><span>User</span><span className="text-center">Village</span><span className="text-center">House</span></div>
+            <div className="divide-y divide-gray-100">
+                {users.map((u:any)=><div key={u.id} className="grid grid-cols-[1fr_1fr_1fr] items-center p-2 bg-white"><div className="flex gap-2 items-center"><img src={u.photo} className="w-8 h-8 rounded-full border border-gray-200" alt="User"/><span className="text-xs font-bold truncate text-gray-900">{u.name}</span></div><div className="px-2"><div className="w-full bg-gray-200 h-2 rounded"><div className="bg-green-500 h-2 rounded" style={{width:`${getProg(u,'VILLAGE')}%`}}/></div><div className="text-[10px] text-center text-gray-600">{getProg(u,'VILLAGE')}%</div></div><div className="px-2"><div className="w-full bg-gray-200 h-2 rounded"><div className="bg-blue-500 h-2 rounded" style={{width:`${getProg(u,'HOUSE')}%`}}/></div><div className="text-[10px] text-center text-gray-600">{getProg(u,'HOUSE')}%</div></div></div>)}
+            </div>
+         </AdminAccordion>
+      </div>}
+      {tab==='GUESTBOOK' && (
+          <Card className="p-0 overflow-hidden divide-y divide-gray-100">
+             <div className="bg-gray-100 p-3 font-bold text-gray-700 uppercase text-xs border-b">GUESTBOOK ENTRIES</div>
+             {users.filter((u:any)=>u.hostComment).map((u:any)=><div key={u.id} className="p-3 bg-white"><div className="flex gap-2 mb-1"><img src={u.photo} className="w-6 h-6 rounded-full" alt="User"/><span className="font-bold text-sm text-gray-900">{u.name}</span></div><p className="text-sm italic text-gray-900">"{u.hostComment}"</p></div>)}
+          </Card>
+      )}
+      {tab==='POLLS' && <div className="p-4 space-y-6"><div className="bg-white p-4 rounded border shadow-sm"><h3 className="font-bold text-sm mb-2 text-gray-900">Create Poll</h3><Input value={pq} onChange={e=>spq(e.target.value)} placeholder="Question"/><div className="space-y-2 mt-2">{opts.map((o,i)=><div key={i} className="flex gap-2"><Input value={o.text} onChange={e=>{const n=[...opts];n[i].text=e.target.value;setOpts(n)}} placeholder={`Option ${i+1}`} className="flex-1"/><Button variant="danger" onClick={()=>setOpts(opts.filter((_,idx)=>idx!==i))} className="px-3">X</Button></div>)}</div><Button variant="outline" onClick={()=>setOpts([...opts, {id:Date.now().toString(), text:''}])} className="w-full mt-2 text-xs">+ Add Option</Button><Button onClick={createPoll} className="bg-green-600 text-white w-full mt-4">Create Poll</Button></div><Card className="p-0 overflow-hidden divide-y divide-gray-100">{polls.map((p:any)=><div key={p.id} className="p-2 bg-gray-50 flex justify-between items-center"><span className="text-xs font-bold truncate flex-1 text-gray-800">{p.question}</span><Button variant="danger" onClick={()=>deleteDoc(doc(db,'polls',p.id))} className="text-xs py-1 px-2">Del</Button></div>)}</Card></div>}
+      {tab==='HUNT' && <div className="p-4 space-y-6"><div className="bg-white p-4 rounded border shadow-sm"><h3 className="font-bold text-sm mb-2 text-gray-900">Add Hunt Item</h3><Input value={ht} onChange={e=>sht(e.target.value)} placeholder="Item Name / Question"/><div className="flex gap-2 mt-2"><Button variant={hType==='VILLAGE'?'primary':'outline'} onClick={()=>sHType('VILLAGE')} className="flex-1 text-xs">Village</Button><Button variant={hType==='HOUSE'?'primary':'outline'} onClick={()=>sHType('HOUSE')} className="flex-1 text-xs">House</Button></div><select value={hCat} onChange={e=>sHCat(e.target.value)} className="w-full mt-2 p-2 border rounded bg-white text-gray-900 text-sm focus:border-red-500 outline-none"><option value="">Select Category...</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select><Button onClick={createHunt} className="bg-green-600 text-white w-full mt-4">Add Item</Button></div><Card className="p-0 overflow-hidden divide-y divide-gray-100">{hunts.map((h:any)=><div key={h.id} className="p-2 bg-gray-50 flex justify-between items-center"><span className="text-xs font-bold truncate flex-1 text-gray-800">{h.text} ({h.huntType}) [{h.type}]</span><Button variant="danger" onClick={()=>deleteDoc(doc(db,'hunt_items',h.id))} className="text-xs py-1 px-2">Del</Button></div>)}</Card></div>}
       {tab==='DATA' && <div className="p-4 space-y-6"><div className="space-y-2"><Button onClick={async()=>{if(prompt("Pass?")==='kokomo'){
           const b=writeBatch(db);
           // 1. Delete ALL existing hunt items to remove extras
@@ -724,9 +1501,8 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose }: any) => {
   );
 };
 
-const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }: any) => {
+const ProfileScreen = ({ user, users, games, hunts, onClose, onGoToGames, onGoToVote, setLightboxUrl, readOnly = false }: any) => {
   const [name, setName] = useState(user.name);
-  const [photo, setPhoto] = useState<File|null>(null);
   const [preview, setPreview] = useState(user.photo);
   const [fEmail, setFEmail] = useState(user.futureEmail||'');
   const [fPhone, setFPhone] = useState(user.futurePhone||'');
@@ -754,19 +1530,13 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
           setPreview(URL.createObjectURL(file));
           setUploading(true);
           try {
+              const compressed = await compressImage(file);
               const sRef = firebaseStorage.ref(storage, `profiles/${user.id}_${Date.now()}.jpg`);
-              await firebaseStorage.uploadBytes(sRef, file);
+              await firebaseStorage.uploadBytes(sRef, compressed);
               const url = await firebaseStorage.getDownloadURL(sRef);
               await updateDoc(doc(db, 'users', user.id), { photo: url });
           } catch(err) { console.error(err); }
           setUploading(false);
-      }
-  };
-
-  // Auto-Save Language
-  const changeLang = async (l: 'en'|'es') => {
-      if(!readOnly) {
-         await updateDoc(doc(db, 'users', user.id), { language: l });
       }
   };
 
@@ -776,6 +1546,30 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
         await updateDoc(doc(db, 'users', user.id), { futureEmail: fEmail, futurePhone: fPhone });
         alert("Info Saved!");
      }
+  };
+  
+  const generateICS = () => {
+    const event = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "SUMMARY:Fruth Be Told Christmas Party",
+      "DTSTART:20261205T180000",
+      "DTEND:20261205T235900",
+      "DESCRIPTION:Next Year's Party!",
+      "LOCATION:Fruth House",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\n");
+
+    const blob = new Blob([event], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "party.ics";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Stats Logic
@@ -794,8 +1588,6 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
       }); 
   });
 
-  const isPhotosUser = users.find((u:any)=>u.id===user.id);
-  // Get users photos for Gallery
   const [userPhotos, setUserPhotos] = useState<any[]>([]);
   useEffect(() => {
       if(readOnly) {
@@ -803,17 +1595,28 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
       }
   }, [readOnly, user.id]);
 
+  const sectionHeaderClass = "text-sm font-bold text-gray-800 uppercase tracking-wide mb-2 border-b border-gray-100 pb-1";
+
+  // Force Scroll logic for Admin
+  const containerClass = readOnly ? "h-[calc(100vh-80px)] overflow-y-auto pb-40" : "";
+
   return (
-    <div className="p-6 space-y-5 pt-10 relative">
-      {!readOnly && <div className="absolute top-0 right-6 flex gap-2 z-10">
-        <button onClick={()=>changeLang('en')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors shadow-sm ${user.language==='en'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>EN</button>
-        <button onClick={()=>changeLang('es')} className={`px-6 py-2 rounded-full font-bold text-xl transition-colors shadow-sm ${user.language==='es'?'bg-[#0B3D2E] text-white ring-2 ring-offset-1 ring-[#0B3D2E]':'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>ES</button>
-      </div>}
+    <div className={`p-6 space-y-5 pt-10 relative ${containerClass}`}>
+      {/* Navigation for Admin Inspection Mode */}
+      {readOnly ? (
+          <button onClick={onClose} className="fixed top-4 left-4 z-50 bg-gray-900 text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-black transition-colors">
+              <span>←</span>
+          </button>
+      ) : (
+          <button onClick={onClose} className="fixed top-4 left-4 z-50 bg-gray-100 p-2 rounded-full hover:bg-gray-200 shadow-sm border border-gray-200">
+               <span className="text-xl font-bold text-gray-700 leading-none pb-1 block">←</span>
+          </button>
+      )}
 
       <Card className="p-6 relative bg-white/95 backdrop-blur shadow-xl border-t-4 border-red-600 mt-6">
           <div className="flex flex-col items-center -mt-16 mb-4 relative">
                <div className="relative inline-block">
-                   <img src={preview} className="w-72 h-72 rounded-full border-8 border-white shadow-2xl object-cover bg-gray-200" />
+                   <img src={preview} className="w-72 h-72 rounded-full border-8 border-white shadow-2xl object-cover bg-gray-200" alt="Profile" />
                    {uploading && <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center"><div className="animate-spin h-10 w-10 border-4 border-white border-t-transparent rounded-full"/></div>}
                    {winCount > 0 && <div className="absolute -bottom-2 -left-2 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-black shadow border border-white flex items-center gap-1"><IconTrophy className="w-4 h-4"/> {winCount}</div>}
                    
@@ -829,33 +1632,21 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
           </div>
 
           <div className="space-y-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-2 text-center">{ui.playerCard}</h3>
+              <h3 className={sectionHeaderClass.replace('text-gray-800','text-gray-500') + " text-center"}>{ui.playerCard}</h3>
               
               <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-2 rounded text-center">
                       <div className="text-[10px] uppercase font-bold text-gray-500">{ui.villageHunt}</div>
-                      <div className="text-xl font-black text-green-600">{vProg}%</div>
+                      <div className="text-lg font-black text-green-600">{vProg}%</div>
                   </div>
                   <div className="bg-gray-50 p-2 rounded text-center">
                       <div className="text-[10px] uppercase font-bold text-gray-500">{ui.houseHunt}</div>
-                      <div className="text-xl font-black text-blue-600">{hProg}%</div>
+                      <div className="text-lg font-black text-blue-600">{hProg}%</div>
                   </div>
               </div>
 
-              <div className="flex justify-between items-center bg-yellow-50 p-3 rounded border border-yellow-100">
-                  <span className="text-sm font-bold text-yellow-800">{ui.quizMastery}</span>
-                  <span className="text-xl font-black text-yellow-600">{user.quizScore || 0} pts</span>
-              </div>
-
-              <div className="text-sm text-gray-800 flex items-center justify-between bg-gray-50 p-2 rounded">
-                  <span className="font-bold text-gray-600">{ui.votingHistory}:</span> 
-                  <div className="flex items-center gap-2">
-                      <span className="font-medium">{votedFor}</span>
-                      {votedForImg && <img src={votedForImg} className="w-6 h-6 rounded-full object-cover"/>}
-                  </div>
-              </div>
-              
-              {myWins.length > 0 && (
+               {/* Hall of Fame - Moved Above Quiz Mastery */}
+               {myWins.length > 0 && (
                   <div className="bg-red-50 p-3 rounded border border-red-100">
                       <div className="text-xs font-bold text-red-800 uppercase mb-1 flex items-center gap-2"><IconTrophy className="w-4 h-4"/> {ui.trophies}</div>
                       <div className="flex flex-col gap-1">
@@ -863,43 +1654,152 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, readOnly = false }:
                       </div>
                   </div>
               )}
-          </div>
+
+              <div className="flex justify-between items-center bg-yellow-50 p-3 rounded border border-yellow-100">
+                  <span className={sectionHeaderClass + " mb-0 border-none pb-0 text-yellow-900"}>{ui.quizMastery}</span>
+                  <span className="text-lg font-black text-yellow-600">{user.quizScore || 0} pts</span>
+              </div>
+
+              {/* Vote Section - Updated Logic */}
+              <div className="bg-gray-50 p-3 rounded border border-gray-100 mt-2">
+                  <h4 className={sectionHeaderClass}>{ui.votingHistory}</h4>
+                  {user.hasVotedForId ? (
+                      <div className="flex flex-col items-center mt-2">
+                          <img src={votedForImg || ''} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md mb-1" alt="Voted For"/>
+                          <span className="font-bold text-sm text-gray-800">{votedFor}</span>
+                          <span className="text-[10px] text-green-600 font-bold uppercase mt-1">✓ Voted</span>
+                      </div>
+                  ) : (
+                      !readOnly && (
+                        <div className="text-left py-2 flex items-center gap-2">
+                            <span className="text-red-500 text-lg">→</span>
+                            <button onClick={onGoToVote} className="text-sm font-bold text-red-600 underline hover:text-red-800 uppercase tracking-wide">
+                                Cast your ugly sweater vote!
+                            </button>
+                        </div>
+                      )
+                  )}
+              </div>
+
+              {/* Elf Yourself Result Section - MULTIPLE */}
+              <div className="bg-green-50 p-3 rounded border border-green-100 mt-2">
+                   <h4 className={sectionHeaderClass}>{ui.elfSelf}</h4>
+                   {(user.elfGenerations && user.elfGenerations.length > 0) ? (
+                       <div className="grid grid-cols-3 gap-2">
+                           {user.elfGenerations.map((imgUrl: string, idx: number) => (
+                               <div key={idx} className="relative aspect-square cursor-pointer hover:opacity-80 rounded overflow-hidden border border-green-200" onClick={()=>setLightboxUrl(imgUrl)}>
+                                    <img src={imgUrl} className="w-full h-full object-cover" alt={`Elf ${idx+1}`} />
+                               </div>
+                           ))}
+                       </div>
+                   ) : (
+                       !readOnly && (
+                           <button onClick={() => onGoToGames('elf-yourself')} className="text-sm font-bold text-green-600 underline hover:text-green-800">
+                               Not Completed Yet - Play Now!
+                           </button>
+                       )
+                   )}
+              </div>
+
+              {/* Selfie Challenge Gallery Section */}
+              <div className="bg-blue-50 p-3 rounded border border-blue-100 mt-2">
+                  <h4 className={sectionHeaderClass}>{ui.selfieChallenge}</h4>
+                  {user.selfieProgress && Object.keys(user.selfieProgress).length > 0 ? (
+                      <div className="grid grid-cols-4 gap-2">
+                          {Object.values(user.selfieProgress).map((url: any, i: number) => (
+                              <img key={i} src={url} className="w-24 h-24 object-cover aspect-square rounded-md border border-blue-200 cursor-pointer hover:opacity-80" onClick={()=>setLightboxUrl(url)} alt="Selfie" />
+                          ))}
+                      </div>
+                  ) : (
+                      !readOnly && (
+                        <button onClick={() => onGoToGames('selfie-challenge')} className="text-sm font-bold text-blue-600 underline hover:text-blue-800">
+                            Not Completed Yet - Play Now!
+                        </button>
+                      )
+                  )}
+              </div>
+
+           </div>
           
-          {readOnly && user.hostComment && (
-             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl relative">
-                 <div className="absolute -top-2 left-4 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-bold text-yellow-800 uppercase tracking-wide">Notes to Host</div>
-                 <p className="text-sm italic text-gray-800 whitespace-pre-wrap leading-relaxed">"{user.hostComment}"</p>
-             </div>
-          )}
-          
-          {readOnly && userPhotos.length > 0 && (
+           {readOnly && userPhotos.length > 0 && (
               <div className="mt-4 pt-4 border-t">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">User's Photos</h4>
+                  <h4 className={sectionHeaderClass}>{ui.userPhotos}</h4>
                   <div className="grid grid-cols-4 gap-1">
-                      {userPhotos.map((p,i) => <img key={i} src={p.url} className="w-full h-12 object-cover rounded"/>)}
+                      {userPhotos.map((p,i) => <img key={i} src={p.url} className="w-full h-12 object-cover rounded cursor-pointer hover:opacity-80" onClick={()=>setLightboxUrl(p.url)} alt="User upload"/>)}
                   </div>
               </div>
+          )}
+
+          {readOnly && (
+             <div className={`mt-4 p-4 rounded-xl relative border ${user.hostComment ? 'bg-yellow-100 border-yellow-400 text-yellow-900 ring-4 ring-yellow-50' : 'bg-yellow-50 border-yellow-100'}`}>
+                 <div className={`absolute -top-2 left-4 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${user.hostComment ? 'bg-yellow-400 text-yellow-900' : 'bg-yellow-100 text-yellow-800'}`}>
+                     {user.hostComment ? '📝 ALERT: Note from User' : 'Notes to Host'}
+                 </div>
+                 {user.hostComment ? (
+                     <p className="text-sm italic font-bold whitespace-pre-wrap leading-relaxed">"{user.hostComment}"</p>
+                 ) : (
+                     <span className="text-xs italic text-gray-500">No notes submitted.</span>
+                 )}
+             </div>
           )}
       </Card>
 
       {!readOnly && <Card className="p-6 bg-white/95">
           <h3 className="font-sweater text-xl text-red-700 mb-4 text-center">{ui.futureParties}</h3>
           <div className="space-y-3">
+              <div className="text-center mb-2">
+                 <button onClick={generateICS} className="text-green-600 font-bold underline hover:text-green-800 text-sm">{ui.calendar}</button>
+              </div>
               <Input label={ui.email} value={fEmail} onChange={e=>setFEmail(e.target.value)} placeholder="santa@northpole.com" className="text-gray-900"/>
               <Input label={ui.phone} value={fPhone} onChange={e=>setFPhone(e.target.value)} placeholder="555-0199" className="text-gray-900"/>
               <Button onClick={handleSaveContact} disabled={uploading} className="w-full bg-[#0B3D2E] border-[#0B3D2E]">{ui.submit}</Button>
           </div>
       </Card>}
       
-      <button onClick={onClose} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-black transition-transform active:scale-95">{readOnly ? 'Back to List' : 'Back to Party'}</button>
+      {!readOnly && <button onClick={onClose} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-black transition-transform active:scale-95">{ui.backToParty}</button>}
     </div>
   );
+};
+
+// Drinks Menu Component
+const DrinksMenu = ({ lang, onClose }: { lang: 'en'|'es', onClose: () => void }) => {
+    return (
+        <div className="space-y-6 pt-4 pb-24">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4">
+                {DRINK_RECIPES.map((drink) => (
+                    <Card key={drink.id} className="p-0 overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
+                        <div className="h-48 w-full relative">
+                            <img src={drink.image} className="w-full h-full object-cover" alt={drink.name} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                                <h3 className="text-white font-sweater text-2xl p-4 tracking-wide">{drink.name}</h3>
+                            </div>
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col gap-3">
+                            <div>
+                                <h4 className="text-xs font-bold text-red-700 uppercase mb-1 tracking-wider">Ingredients</h4>
+                                <p className="text-sm text-gray-800 leading-snug">{drink.ingredients}</p>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold text-green-700 uppercase mb-1 tracking-wider">Instructions</h4>
+                                <p className="text-sm text-gray-600 italic">{drink.instructions}</p>
+                            </div>
+                        </div>
+                    </Card>
+                ))}
+            </div>
+            <div className="px-4">
+                 <button onClick={onClose} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-black transition-transform active:scale-95">Back to Party</button>
+            </div>
+        </div>
+    );
 };
 
 export const App = () => {
   const [fbU, setFbU] = useState<FirebaseUser|null>(null);
   const [user, setUser] = useState<any>(null);
   const [view, setView] = useState<ViewState>('HOME');
+  const [lastView, setLastView] = useState<ViewState>('HOME');
+  const [scrollTarget, setScrollTarget] = useState<string|null>(null); 
   const [load, setLoad] = useState(true);
   const [users, setUsers] = useState<any[]>([]); const [games, setGames] = useState<any[]>([]); const [photos, setPhotos] = useState<any[]>([]); const [hunts, setHunts] = useState<any[]>([]); const [polls, setPolls] = useState<any[]>([]);
   const [voteMode, setVoteMode] = useState('SWEATER');
@@ -908,6 +1808,9 @@ export const App = () => {
   const [showInstall, setShowInstall] = useState(false);
   const prevProg = useRef<any>({});
   
+  // Ref for Main Scroll Container (Critical Fix)
+  const mainRef = useRef<HTMLDivElement>(null);
+
   // PWA Install Prompt State
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -923,9 +1826,36 @@ export const App = () => {
   const [quizQ, setQuizQ] = useState<any>(null);
   const [quizFeedback, setQuizFeedback] = useState<'CORRECT'|'WRONG'|null>(null);
   const [note, setNote] = useState('');
+  const [quizComplete, setQuizComplete] = useState(false);
   
   // Photo Download State
   const [zipping, setZipping] = useState(false);
+
+  // Force scroll logic on view change (Fixing Disappearing Header)
+  useEffect(() => {
+     if(!scrollTarget) {
+         if (mainRef.current) mainRef.current.scrollTo(0, 0);
+         window.scrollTo(0, 0); // Fallback
+     }
+  }, [view, scrollTarget]);
+
+  // Handle Deep Linking / Scrolling
+  const goToGames = (targetId?: string) => {
+      setLastView(view);
+      setView('GAMES');
+      if (targetId) {
+          setScrollTarget(targetId);
+      }
+  };
+  
+  const handleProfileClick = () => {
+      setLastView(view);
+      setView('PROFILE');
+  };
+
+  const goBack = () => {
+      setView(lastView || 'HOME');
+  };
 
   // Facts Logic: Shuffle once on mount, then cycle through
   useEffect(() => {
@@ -945,12 +1875,9 @@ export const App = () => {
   
   // PWA Installation Logic
   useEffect(() => {
-      // 1. Check if already installed
       if (window.matchMedia('(display-mode: standalone)').matches) {
           setIsStandalone(true);
       }
-
-      // 2. Listen for 'beforeinstallprompt' (Android)
       const handler = (e: any) => {
           e.preventDefault();
           setInstallPrompt(e);
@@ -960,7 +1887,6 @@ export const App = () => {
   }, []);
 
   const handleInstallClick = () => {
-      // If Android prompt is available, trigger it
       if (installPrompt) {
           installPrompt.prompt();
           installPrompt.userChoice.then((choiceResult: any) => {
@@ -970,15 +1896,25 @@ export const App = () => {
               }
           });
       } else {
-          // Otherwise show the manual instructions (mainly for iOS)
           setShowInstall(true);
       }
   };
   
+  // TRIVIA LOGIC
   const nextQuestion = () => {
-      const rawQ = TRADITIONAL_QUIZ[Math.floor(Math.random() * TRADITIONAL_QUIZ.length)];
+      if (!user) return;
+      const answered = user.answeredQuizIds || [];
+      const availableIndices = TRADITIONAL_QUIZ.map((_, i) => i).filter(i => !answered.includes(i));
       
-      // Shuffle logic for answers
+      if (availableIndices.length === 0) {
+          setQuizComplete(true);
+          setQuizQ(null);
+          return;
+      }
+
+      const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+      const rawQ = TRADITIONAL_QUIZ[randomIndex];
+      
       const indices = rawQ.a.map((_, i) => i);
       for (let i = indices.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -987,6 +1923,7 @@ export const App = () => {
       
       const shuffledQ = {
           ...rawQ,
+          originalIndex: randomIndex, // Track the actual question ID
           a: indices.map(i => rawQ.a[i]),
           aEs: indices.map(i => rawQ.aEs[i]),
           c: indices.indexOf(rawQ.c)
@@ -995,17 +1932,28 @@ export const App = () => {
       setQuizQ(shuffledQ);
       setQuizFeedback(null);
   };
-  useEffect(() => { if(!quizQ) nextQuestion(); }, []);
+  
+  useEffect(() => { 
+      if(!quizQ && user && !quizComplete) nextQuestion(); 
+  }, [quizQ, user]);
 
   const handleQuizAnswer = async (idx: number) => {
       const isCorrect = idx === quizQ.c;
       setQuizFeedback(isCorrect ? 'CORRECT' : 'WRONG');
-      if(isCorrect && user) {
-          await updateDoc(doc(db, 'users', user.id), { quizScore: increment(1), quizTotalAttempted: increment(1) });
-      } else if (user) {
-          await updateDoc(doc(db, 'users', user.id), { quizTotalAttempted: increment(1) });
+      
+      if (user) {
+          const updates: any = { 
+              quizTotalAttempted: increment(1),
+              answeredQuizIds: arrayUnion(quizQ.originalIndex)
+          };
+          if (isCorrect) updates.quizScore = increment(1);
+          await updateDoc(doc(db, 'users', user.id), updates);
       }
-      setTimeout(nextQuestion, 1500);
+      
+      setTimeout(() => {
+          setQuizQ(null);
+          setQuizFeedback(null);
+      }, 1500);
   };
 
   const downloadAllPhotos = async () => {
@@ -1060,9 +2008,13 @@ export const App = () => {
     return {count:done, total:items.length, pct:Math.round((done/items.length)*100)};
   };
   
+  const changeLang = async (l: 'en'|'es') => {
+      await updateDoc(doc(db, 'users', user.id), { language: l });
+  };
+  
   const profileAction = (
-      <button onClick={()=>setView('PROFILE')} className="ml-2">
-          <img src={user.photo} className="w-16 h-16 rounded-full border-4 border-[#0B3D2E] object-cover shadow-sm"/>
+      <button onClick={handleProfileClick} className="ml-2">
+          <img src={user.photo} className="w-16 h-16 rounded-full border-4 border-green-500 object-cover shadow-sm" alt="Profile"/>
       </button>
   );
 
@@ -1070,10 +2022,21 @@ export const App = () => {
       let title: React.ReactNode = "";
       let action: React.ReactNode = null;
       let sub: React.ReactNode = null;
+      let back: (() => void) | undefined = undefined;
 
       if(view === 'HOME') {
-          title = <div onClick={()=>setView('PROFILE')} className="flex gap-3 items-center"><img src={user.photo} className="w-16 h-16 rounded-full object-cover border-4 border-[#0B3D2E]"/><span className="font-bold text-4xl text-red-700 font-sweater">{t.home.hello}, {user.name.split(' ')[0]}</span></div>;
-          action = <button onClick={()=>setView('ADMIN')}><IconLock className="w-8 h-8 text-gray-400"/></button>;
+          title = <div onClick={handleProfileClick} className="flex gap-3 items-center">
+            {/* WRAPPER FIX */}
+            <div className="w-16 h-16 rounded-full border-4 border-green-500 overflow-hidden shrink-0 bg-white">
+                <img src={user.photo} className="w-full h-full object-cover" alt="Me"/>
+            </div>
+            <span className="font-bold text-3xl text-red-700 font-sweater">{t.home.hello}, {user.name.split(' ')[0]}</span>
+          </div>;
+          action = (
+             <div className="flex items-center gap-3">
+                 <button onClick={()=>setView('ADMIN')}><IconLock className="w-6 h-6 text-gray-400"/></button>
+             </div>
+          );
       } else if (view === 'GAMES') {
           title = t.games.title;
           action = profileAction;
@@ -1087,7 +2050,7 @@ export const App = () => {
           sub = (
             <div className="mt-1">
                 <div className="flex justify-between items-end mb-1 text-xs font-bold text-green-800">
-                    <span>Progress</span>
+                    <span>{t.hunt.progress}</span>
                     <span>{prog.count}/{prog.total} ({prog.pct}%)</span>
                 </div>
                 <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden"><div className="bg-green-600 h-full transition-all" style={{width:`${prog.pct}%`}}/></div>
@@ -1097,9 +2060,25 @@ export const App = () => {
       else if (view === 'VOTING') { title = t.vote.title; action = profileAction; }
       else if (view === 'PHOTOS') { title = t.nav.PHOTOS; action = profileAction; }
       else if (view === 'ADMIN') title = t.nav.ADMIN;
-      else if (view === 'PROFILE') title = t.nav.PROFILE;
+      else if (view === 'DRINKS') {
+          title = t.drinks.title;
+          back = () => setView('HOME'); // Explicit Home Navigation
+          action = profileAction;
+      }
+      else if (view === 'PROFILE') {
+          title = t.nav.PROFILE;
+          back = goBack;
+          action = (
+              <div className="flex items-center gap-3">
+                  <div className="flex gap-1">
+                      <button onClick={()=>changeLang('en')} className={`px-2 py-1 rounded font-bold text-xs transition-colors ${user.language==='en'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500'}`}>EN</button>
+                      <button onClick={()=>changeLang('es')} className={`px-2 py-1 rounded font-bold text-xs transition-colors ${user.language==='es'?'bg-[#0B3D2E] text-white':'bg-gray-100 text-gray-500'}`}>ES</button>
+                  </div>
+              </div>
+          );
+      }
       
-      return <Header title={title} rightAction={action} subHeader={sub} />;
+      return <Header title={title} rightAction={action} subHeader={sub} onBack={back} />;
   }
   
   // Current Fact Logic
@@ -1116,25 +2095,74 @@ export const App = () => {
       {lightboxUrl && (
           <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center animate-in fade-in cursor-pointer" onClick={() => setLightboxUrl(null)}>
               <button onClick={() => setLightboxUrl(null)} className="absolute top-4 right-4 text-white text-3xl font-bold p-4 z-[210] hover:text-gray-300">X</button>
-              <img src={lightboxUrl} className="max-w-full max-h-screen object-contain" onClick={e => e.stopPropagation()} />
+              <img src={lightboxUrl} className="max-w-full max-h-screen object-contain" onClick={e => e.stopPropagation()} alt="Full Size"/>
           </div>
       )}
       
       <TopBar />
       
-      <main className="flex-1 overflow-y-auto p-4 pb-24 no-scrollbar flex flex-col pt-6 relative">
+      {/* Attach REF to main scrolling container */}
+      <main ref={mainRef} className="flex-1 overflow-y-auto p-4 pb-24 no-scrollbar flex flex-col pt-6 relative">
         {view==='HOME' && <SnowFall />}
         
-        {view==='HOME'&&<div className="flex-1 flex flex-col space-y-6">
-           <div className="text-center pt-2">
-               <h1 className="text-6xl font-bold text-red-700 font-sweater drop-shadow-md text-white md:text-red-700 uppercase leading-none">{t.home.title}</h1>
-               <ul className="space-y-3 font-sweater text-2xl mt-4 text-center list-none bg-white/60 p-4 rounded-xl backdrop-blur-sm text-gray-800">
-                   {t.home.steps.map((s:string,i:number)=><li key={i}>{s}</li>)}
+        {view==='HOME'&&<div className="flex-1 flex flex-col space-y-3">
+           <div className="text-center pt-2 -mt-4">
+               <h1 className="text-5xl font-black text-red-700 font-sweater drop-shadow-lg text-white md:text-red-700 uppercase leading-none">{t.home.title}</h1>
+               <ul className="space-y-1 font-sweater text-2xl mt-4 text-center list-none bg-white/60 p-3 rounded-xl backdrop-blur-sm text-gray-800">
+                   {t.home.steps.map((s:string, i:number) => {
+                       const lower = s.toLowerCase();
+                       
+                       // Games Logic
+                       if (lower.includes('games') || lower.includes('juegos')) {
+                           return (
+                               <li key={i}>
+                                   <button onClick={() => goToGames()} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">{s}</button>
+                                   <button onClick={() => goToGames('elf-yourself')} className="underline decoration-green-400 decoration-2 underline-offset-4 hover:text-green-700 font-sweater text-2xl block mx-auto mt-1">
+                                       {userLang === 'en' ? "Elf Yourself" : "Conviértete en Elfo"}
+                                   </button>
+                               </li>
+                           );
+                       }
+                       
+                       // Scavenger Hunt Logic
+                       if (lower.includes('scavenger') || lower.includes('búsqueda')) {
+                           return (
+                               <li key={i}>
+                                   <button onClick={() => setView('HUNT_VILLAGE')} className="underline decoration-green-400 decoration-2 underline-offset-4 hover:text-green-700 font-sweater">{s}</button>
+                               </li>
+                           );
+                       }
+                       
+                       // Drinks Logic
+                       if (lower.includes('drink') || lower.includes('bebida')) {
+                           return (
+                               <li key={i}>
+                                   <button onClick={() => setView('DRINKS')} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">{s}</button>
+                               </li>
+                           )
+                       }
+                       
+                       // Inject Ugly Sweater Vote Link before the last item (which is usually "Have a great time")
+                       if (i === t.home.steps.length - 1) {
+                            return (
+                                <React.Fragment key={i}>
+                                    <li>
+                                       <button onClick={()=>setView('VOTING')} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">
+                                           {t.home.castVote}
+                                       </button>
+                                   </li>
+                                   <li className="font-sweater">{s}</li>
+                                </React.Fragment>
+                            )
+                       }
+                       
+                       return <li key={i} className="font-sweater">{s}</li>
+                   })}
                </ul>
            </div>
            
            <Card className="bg-red-50 border-red-100 text-center p-4">
-               <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-2">Did You Know?</h3>
+               <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-2">{t.home.didYouKnow}</h3>
                <p className="font-serif italic text-lg text-gray-800">"{currentFact}"</p>
            </Card>
 
@@ -1144,10 +2172,10 @@ export const App = () => {
                </div>
                <Button onClick={async()=>{if(!note)return;await updateDoc(doc(db,'users',user.id),{hostComment:user.hostComment?user.hostComment+'\n'+note:note});setNote('');alert(userLang === 'en' ? "Sent!" : "¡Enviado!")}} className="h-10 bg-red-600 text-white w-24 rounded-xl flex items-center justify-center">{t.home.send}</Button>
            </div>
-           {!isStandalone && <Button onClick={handleInstallClick} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg mt-4 hover:bg-black border border-gray-700">{t.install.title}</Button>}
+           {!isStandalone && <Button onClick={handleInstallClick} className="w-full bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg mt-4 hover:bg-green-800 border border-green-600">{t.install.title}</Button>}
         </div>}
         
-        {view==='GAMES'&&<GamesScreen games={games} user={user} users={users} />}
+        {view==='GAMES'&&<GamesScreen games={games} user={user} users={users} setLightboxUrl={setLightboxUrl} scrollTarget={scrollTarget} />}
         
         {(view==='HUNT_VILLAGE'||view==='HUNT_HOUSE')&&<div className="space-y-4 pb-32">
           {['Hidden Items','CHRISTMAS','DISNEY','TV & MOVIES','CREATURES','SCI-FI','ANIMALS','Questions'].map(cat=>{
@@ -1187,34 +2215,53 @@ export const App = () => {
           })}
           </div>}
         
-        {view==='VOTING'&&<div className="space-y-4">
+        {view==='VOTING'&&<div className="space-y-4 pb-32">
             <div className="flex gap-2 bg-white/50 p-1 rounded-xl backdrop-blur-sm">
-                <button onClick={()=>setVoteMode('SWEATER')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${voteMode==='SWEATER'?'bg-red-600 text-white shadow-lg':'text-gray-600 hover:bg-white/50'}`}>Ugly Sweater</button>
-                <button onClick={()=>setVoteMode('POLLS')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${voteMode==='POLLS'?'bg-red-600 text-white shadow-lg':'text-gray-600 hover:bg-white/50'}`}>Polls</button>
-                <button onClick={()=>setVoteMode('QUIZ')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${voteMode==='QUIZ'?'bg-red-600 text-white shadow-lg':'text-gray-600 hover:bg-white/50'}`}>Trivia</button>
+                <button onClick={()=>setVoteMode('SWEATER')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${voteMode==='SWEATER'?'bg-red-600 text-white shadow-lg':'text-gray-600 hover:bg-white/50'}`}>{t.vote.uglySweater}</button>
+                <button onClick={()=>setVoteMode('POLLS')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${voteMode==='POLLS'?'bg-red-600 text-white shadow-lg':'text-gray-600 hover:bg-white/50'}`}>{t.vote.polls}</button>
+                <button onClick={()=>setVoteMode('QUIZ')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${voteMode==='QUIZ'?'bg-red-600 text-white shadow-lg':'text-gray-600 hover:bg-white/50'}`}>{t.vote.trivia}</button>
             </div>
             
-            {voteMode==='SWEATER' && users.map((u:any)=><div key={u.id} className="flex items-center gap-3 bg-white p-2 rounded border shadow-sm"><img src={u.photo} className="w-10 h-10 rounded-full object-cover"/><div className="flex-1 font-bold text-gray-800">{u.name}</div>{user.hasVotedForId===u.id?<span className="text-green-600 font-bold px-3">{t.vote.voted}</span>:u.id!==user.id&&<Button onClick={()=>{const b=writeBatch(db);if(user.hasVotedForId)b.update(doc(db,'users',user.hasVotedForId),{votesReceived:increment(-1)});b.update(doc(db,'users',u.id),{votesReceived:increment(1)});b.update(doc(db,'users',user.id),{hasVotedForId:u.id});b.commit()}} className="text-xs bg-red-600 text-white">{t.vote.voteBtn}</Button>}</div>)}
+            {voteMode==='SWEATER' && (
+                <Card className="bg-white/90 backdrop-blur-sm p-4 rounded-3xl shadow-xl">
+                    <h3 className="font-sweater text-xl text-red-700 text-center uppercase drop-shadow-sm mb-4">Cast your Ugliest Sweater Vote</h3>
+                    <div className="space-y-3">
+                        {users.sort((a:any,b:any) => {
+                            if (a.id === user.id) return -1;
+                            if (b.id === user.id) return 1;
+                            return (a.timestamp || 0) - (b.timestamp || 0); // Sort others by join time
+                        }).map((u:any)=><div key={u.id} className="flex items-center gap-3 bg-white p-2 rounded border shadow-sm"><img src={u.photo} className="w-10 h-10 rounded-full object-cover" alt="User"/><div className="flex-1 font-bold text-gray-800">{u.name}</div>{user.hasVotedForId===u.id?<span className="text-green-600 font-bold px-3">{t.vote.voted}</span>:u.id!==user.id&&<Button onClick={()=>{const b=writeBatch(db);if(user.hasVotedForId)b.update(doc(db,'users',user.hasVotedForId),{votesReceived:increment(-1)});b.update(doc(db,'users',u.id),{votesReceived:increment(1)});b.update(doc(db,'users',user.id),{hasVotedForId:u.id});b.commit()}} className="text-xs bg-red-600 text-white">{t.vote.voteBtn}</Button>}</div>)}
+                    </div>
+                </Card>
+            )}
             
             {voteMode==='POLLS' && polls.map((p:any)=>{
                const total = Object.keys(p.answers).length;
                const userVoted = p.answers[user.id];
-               return <Card key={p.id} className="p-3"><h3 className="font-bold text-sm mb-2 text-gray-900">{getTx(p, 'question', userLang)}</h3>
+               return <Card key={p.id} className="p-3"><h3 className="font-bold text-lg mb-2 text-gray-900">{getTx(p, 'question', userLang)}</h3>
                {p.options.map((o:any)=>{
                  const count = Object.values(p.answers).filter(a=>a===o.id).length;
                  const pct = total ? Math.round((count/total)*100) : 0;
                  const isSel = p.answers[user.id]===o.id;
                  return (
-                   <div key={o.id} onClick={()=>updateDoc(doc(db,'polls',p.id),{[`answers.${user.id}`]:o.id})} className={`relative p-2 border rounded mb-1 text-xs cursor-pointer overflow-hidden ${isSel?'border-green-500 ring-1 ring-green-500':''}`}>
+                   <div key={o.id} onClick={()=>updateDoc(doc(db,'polls',p.id),{[`answers.${user.id}`]:o.id})} className={`relative p-3 border rounded mb-2 text-base cursor-pointer overflow-hidden ${isSel?'border-green-500 ring-1 ring-green-500':''}`}>
                      {userVoted && <div className="absolute left-0 top-0 bottom-0 bg-green-100 transition-all" style={{width:`${pct}%`}}/>}
-                     <div className="relative flex justify-between text-gray-800"><span className={isSel?'font-bold':''}>{getTx(o, 'text', userLang)}</span>{userVoted && <span className="font-mono text-gray-500">{pct}%</span>}</div>
+                     <div className="relative flex justify-between text-gray-800"><span className={isSel?'font-bold':''}>{getTx(o, 'text', userLang)}</span>{userVoted && <span className="font-bold font-sans text-gray-900">{pct}%</span>}</div>
                    </div>
                  )
                })}
                </Card>
             })}
 
-            {voteMode==='QUIZ' && quizQ && <Card className="bg-white p-6 text-center space-y-4 shadow-xl border-4 border-double border-red-100">
+            {voteMode==='QUIZ' && (quizComplete ? 
+              <Card className="bg-white p-8 text-center shadow-xl space-y-4 border-4 border-double border-green-100">
+                  <IconTrophy className="w-16 h-16 text-yellow-500 mx-auto" />
+                  <h3 className="text-2xl font-black text-gray-800 uppercase tracking-widest">{userLang==='en'?'Quiz Complete!':'¡Trivia Completa!'}</h3>
+                  <div className="text-4xl font-sweater text-red-600">{user.quizScore} / {TRADITIONAL_QUIZ.length}</div>
+                  <p className="text-gray-500 font-bold">You are a Christmas genius!</p>
+              </Card> 
+              : quizQ && 
+              <Card className="bg-white p-6 text-center space-y-4 shadow-xl border-4 border-double border-red-100">
                  <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest">Christmas Trivia</h3>
                  <div className="font-bold text-lg min-h-[60px] flex items-center justify-center text-gray-900">{getTx(quizQ, 'q', userLang)}</div>
                  <div className="grid grid-cols-1 gap-2">
@@ -1223,7 +2270,7 @@ export const App = () => {
                             key={i}
                             disabled={!!quizFeedback}
                             onClick={()=>handleQuizAnswer(i)}
-                            className={`p-3 rounded-lg font-bold transition-all transform active:scale-95 ${quizFeedback ? (i===quizQ.c ? 'bg-green-600 text-white' : i===getTx(quizQ,'a',userLang).indexOf(ans) ? 'bg-red-200 text-gray-400' : 'bg-gray-100 text-gray-400') : 'bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-gray-50'}`}
+                            className={`p-3 rounded-lg font-bold transition-all transform active:scale-95 ${quizFeedback ? (i===quizQ.c ? 'bg-green-600 text-white' : i===getTx(quizQ,'a',userLang).indexOf(ans) ? 'bg-red-200 text-gray-400' : 'bg-white border border-gray-200 text-gray-400') : 'bg-white border border-gray-200 shadow-sm text-gray-900 active:bg-gray-100'}`}
                          >
                             {ans}
                          </button>
@@ -1231,15 +2278,16 @@ export const App = () => {
                  </div>
                  {quizFeedback && <div className={`font-black text-2xl animate-bounce ${quizFeedback==='CORRECT'?'text-green-600':'text-red-600'}`}>{quizFeedback === 'CORRECT' ? (userLang==='en'?'CORRECT!':'¡CORRECTO!') : (userLang==='en'?'WRONG!':'¡INCORRECTO!')}</div>}
                  <div className="text-xs text-gray-400 mt-2">Score: {user.quizScore || 0}</div>
-            </Card>}
+            </Card>)}
         </div>}
         
-        {view==='ADMIN'&&<AdminDashboard users={users} polls={polls} hunts={hunts} games={games} onClose={()=>setView('HOME')}/>}
-        {view==='PROFILE'&&<ProfileScreen user={user} users={users} games={games} hunts={hunts} onClose={()=>setView('HOME')}/>}
-        {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? (userLang==='en'?'Zipping...':'Comprimiendo...') : 'Download All'}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full"/></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,f);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
+        {view==='ADMIN'&&<AdminDashboard users={users} polls={polls} hunts={hunts} games={games} onClose={()=>setView('HOME')} setLightboxUrl={setLightboxUrl}/>}
+        {view==='PROFILE'&&<ProfileScreen user={user} users={users} games={games} hunts={hunts} onClose={goBack} onGoToGames={(target: string) => goToGames(target)} onGoToVote={() => setView('VOTING')} setLightboxUrl={setLightboxUrl} />}
+        {view==='DRINKS' && <DrinksMenu lang={userLang} onClose={() => setView('HOME')} />}
+        {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? (userLang==='en'?'Zipping...':'Comprimiendo...') : t.photos.download}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full" alt="Gallery"/></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const compressed = await compressImage(f); const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,compressed);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
       </main>
-      <nav className="bg-white/90 backdrop-blur-md border-t p-2 pb-6 grid grid-cols-6 gap-1 text-[10px] font-bold text-gray-500 fixed bottom-0 w-full max-w-3xl z-[60]">
-        {[ ['HOME',IconHome],['HUNT_VILLAGE',IconVillage],['HUNT_HOUSE',IconHouse],['VOTING',IconVote],['GAMES',IconGamepad],['PHOTOS',IconCamera] ].map(([v,I]:any)=><button key={v} onClick={()=>setView(v)} className={`flex flex-col items-center ${view===v?'text-green-800':''}`}><I className={`w-8 h-8 ${view===v?'stroke-2':'stroke-1'}`}/></button>)}
+      <nav className="bg-red-700 border-t border-red-800 p-2 pb-6 grid grid-cols-6 gap-1 text-[10px] font-bold fixed bottom-0 w-full max-w-3xl z-[60] h-20 items-center">
+        {[ ['HOME',IconHome],['HUNT_VILLAGE',IconVillage],['HUNT_HOUSE',IconHouse],['VOTING',IconVote],['GAMES',IconGamepad],['PHOTOS',IconCamera] ].map(([v,I]:any)=><button key={v} onClick={()=> {setLastView(view); setView(v);}} className={`flex flex-col items-center justify-center transition-all ${view===v?'text-white scale-110':'text-red-300'}`}><I className={`w-8 h-8 ${view===v?'stroke-2':'stroke-1'}`}/></button>)}
       </nav>
     </div>
   );

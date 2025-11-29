@@ -13,7 +13,9 @@
     "react": "^19.2.0",
     "firebase": "^12.6.0",
     "three": "0.160.0",
-    "jszip": "latest"
+    "jszip": "latest",
+    "@google/genai": "^1.30.0",
+    "browser-image-compression": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
