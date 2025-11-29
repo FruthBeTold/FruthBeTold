@@ -41,43 +41,55 @@ const DRINK_RECIPES = [
     id: 'd1',
     name: "The Nutty Elf",
     ingredients: "2 oz Peanut Butter Whiskey, 2 oz Chocolate Baileys, Splash of Creamer",
+    ingredientsEs: "2 oz Whisky de mantequilla de maní, 2 oz Baileys de chocolate, Un chorrito de Crema",
     instructions: "Mix equal parts over ice. Shake well if you're feeling fancy.",
-    image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400"
+    instructionsEs: "Mezclar partes iguales sobre hielo y revolver.",
+    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500"
   },
   {
     id: 'd2',
     name: "Yule Mule",
     ingredients: "2 oz Vodka, 3 oz Cranberry Juice, Top with Ginger Ale",
+    ingredientsEs: "2 oz Vodka, 3 oz Jugo de arándano, Completar con Ginger Ale",
     instructions: "Pour vodka over ice, fill halfway with cranberry, top with ginger ale.",
-    image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400"
+    instructionsEs: "Verter vodka y jugo sobre hielo, completar con ginger ale.",
+    image: "https://images.unsplash.com/photo-1530991037538-41d3fc82759e?w=500"
   },
   {
     id: 'd3',
     name: "The Grinch’s Fizz",
     ingredients: "2 oz Tequila, 2 oz Pineapple Juice, Top with Sprite",
+    ingredientsEs: "2 oz Tequila, 2 oz Jugo de piña, Completar con Sprite",
     instructions: "Tequila and pineapple juice over ice, top with Sprite for the fizz.",
-    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=400"
+    instructionsEs: "Agitar tequila y jugo, servir sobre hielo, completar con Sprite.",
+    image: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500"
   },
   {
     id: 'd4',
     name: "Santa’s Punch",
     ingredients: "1 oz Vodka, 1 oz Orange Juice, 1 oz Cranberry Juice, 1 oz Pineapple Juice",
+    ingredientsEs: "1 oz Vodka, 1 oz Jugo de naranja, 1 oz Jugo de arándano, 1 oz Jugo de piña",
     instructions: "Mix it all up! The more fruit juice, the merrier.",
-    image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400"
+    instructionsEs: "Mezclar todo en un vaso con hielo.",
+    image: "https://images.unsplash.com/photo-1534353436294-0dbd4bdac845?w=500"
   },
   {
     id: 'd5',
     name: "Tipsy Reindeer",
     ingredients: "2 oz Peanut Butter Whiskey, Top with Coke",
+    ingredientsEs: "2 oz Whisky de mantequilla de maní, Completar con Coca-Cola",
     instructions: "Simple and dangerous. Whiskey first, Coke second.",
-    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=400"
+    instructionsEs: "Verter whisky sobre hielo, completar con Coca-Cola.",
+    image: "https://images.unsplash.com/photo-1455621481073-d5bc1c40e3cb?w=500"
   },
   {
     id: 'd6',
     name: "Snow Day",
     ingredients: "2 oz Chocolate Baileys, 1 oz Vodka, Splash of Creamer",
+    ingredientsEs: "2 oz Baileys de chocolate, 1 oz Vodka, Un chorrito de Crema",
     instructions: "Like a White Russian but better. Serve over plenty of ice.",
-    image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400"
+    instructionsEs: "Agitar con hielo y colar en un vaso.",
+    image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=500"
   }
 ];
 
@@ -973,7 +985,16 @@ const ElfGameCard = ({ user, lang, setLightboxUrl }: { user: User, lang: 'en'|'e
                 
                 // Text 1: Red with White Stroke
                 const text1 = "Fruth Be Told...";
-                const text2 = "You are elfing awesome!";
+                
+                // Puns logic
+                const puns = [
+                    "Treat your-elf!",
+                    "Have your-elf a merry little Christmas!",
+                    "You look elfing amazing!",
+                    "Believe in your-elf!",
+                    "Don't get caught on a shelf!"
+                ];
+                const text2 = puns[Math.floor(Math.random() * puns.length)];
                 
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -1211,8 +1232,10 @@ const GamesScreen = ({ games, user, users, setLightboxUrl, scrollTarget }: any) 
             }, 300); // Slight delay for render
         }
     } else {
-        // Handled by parent mainRef, but safe to keep window scroll too
-        window.scrollTo(0,0);
+        // Fallback: If no target, scroll to top ONLY if no hash (Start at Top Rule)
+        if (!window.location.hash) {
+            window.scrollTo(0, 0);
+        }
     }
   }, [scrollTarget]);
 
@@ -1349,7 +1372,7 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose, setLightboxUrl }:
         <Button onClick={()=>setShowGuestModal(true)} className="w-full bg-green-600 text-white text-sm font-bold shadow-md">+ Add Manual Guest</Button>
         <AdminAccordion title="Registered Users & Guests" defaultOpen={true}>
             <div className="divide-y divide-gray-100">
-                {users.map((u:any)=><div key={u.id} className="flex justify-between items-center p-3 bg-white hover:bg-gray-50 transition-colors">
+                {users.sort((a:any,b:any) => (a.timestamp || 0) - (b.timestamp || 0)).map((u:any)=><div key={u.id} className="flex justify-between items-center p-3 bg-white hover:bg-gray-50 transition-colors">
                     <button onClick={()=>setInspectUser(u)} className="flex items-center gap-3 text-left flex-1">
                         <img src={u.photo} className="w-10 h-10 rounded-full border border-gray-200 object-cover" alt={u.name}/>
                         <div className="flex flex-col">
@@ -1400,12 +1423,12 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose, setLightboxUrl }:
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              {/* Ugly Sweater */}
              <AdminAccordion title="Ugly Sweater Leaderboard">
-                 {users.sort((a:any,b:any)=>b.votesReceived-a.votesReceived).slice(0,5).map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900"><div className="flex items-center gap-2"><span className="font-bold w-4">{i+1}</span><img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/><span className="font-bold">{u.name}</span></div><span>{u.votesReceived} Votes ({totalVotes ? Math.round((u.votesReceived/totalVotes)*100) : 0}%)</span></div>)}
+                 {users.sort((a:any,b:any)=>b.votesReceived-a.votesReceived).slice(0,5).map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900"><div className="flex items-center gap-2"><span className="font-bold w-4">{i+1}</span><img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/><span className={`font-bold ${i===0?'text-green-600 text-sm':''}`}>{u.name}</span></div><span className={`font-black text-xl ${i===0?'text-green-600':''}`}>{u.votesReceived} Votes ({totalVotes ? Math.round((u.votesReceived/totalVotes)*100) : 0}%)</span></div>)}
              </AdminAccordion>
 
              {/* Trivia Leaderboard */}
-             <AdminAccordion title="Trivia Knowledge">
-                 {triviaLeaders.map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900"><div className="flex items-center gap-2"><span className="font-bold w-4">{i+1}</span><img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/><span className="font-bold">{u.name}</span></div><span className="font-black text-yellow-600 text-sm">{u.quizScore || 0} pts</span></div>)}
+             <AdminAccordion title="Trivia Knowledge Leaders">
+                 {triviaLeaders.map((u:any,i:number)=><div key={u.id} className="flex justify-between text-xs p-2 border-b last:border-0 text-gray-900"><div className="flex items-center gap-2"><span className="font-bold w-4">{i+1}</span><img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/><span className={`font-bold ${i===0?'text-green-600 text-sm':''}`}>{u.name}</span></div><span className={`font-black text-xl ${i===0?'text-green-600':'text-yellow-600'}`}>{u.quizScore || 0} pts</span></div>)}
              </AdminAccordion>
              
              {/* Scavenger Hunt Leaderboard */}
@@ -1419,9 +1442,9 @@ const AdminDashboard = ({ users, polls, hunts, games, onClose, setLightboxUrl }:
                                  <div className="flex items-center gap-2">
                                      <span className="font-bold w-4 text-center">{i+1}</span>
                                      <img src={u.photo} className="w-6 h-6 rounded-full" alt="u"/>
-                                     <span className="font-bold">{u.name}</span>
+                                     <span className={`font-bold ${i===0?'text-green-600 text-sm':''}`}>{u.name}</span>
                                  </div>
-                                 <span className="font-black text-blue-600">{totalFound} Items Found</span>
+                                 <span className={`font-black text-xl ${i===0?'text-green-600':'text-blue-600'}`}>{totalFound} Items Found</span>
                              </div>
                             )
                         })}
@@ -1544,7 +1567,7 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, onGoToGames, onGoTo
   const handleSaveContact = async () => {
      if(!readOnly) {
         await updateDoc(doc(db, 'users', user.id), { futureEmail: fEmail, futurePhone: fPhone });
-        alert("Info Saved!");
+        alert("Looking forward to seeing you again! It’s going to be lit (like the tree)!");
      }
   };
   
@@ -1763,6 +1786,13 @@ const ProfileScreen = ({ user, users, games, hunts, onClose, onGoToGames, onGoTo
 
 // Drinks Menu Component
 const DrinksMenu = ({ lang, onClose }: { lang: 'en'|'es', onClose: () => void }) => {
+    useEffect(() => {
+        // If NO hash is present (like #elf-yourself), force top
+        if (!window.location.hash) {
+            window.scrollTo(0, 0);
+        }
+    }, []);
+
     return (
         <div className="space-y-6 pt-4 pb-24">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4">
@@ -1776,19 +1806,19 @@ const DrinksMenu = ({ lang, onClose }: { lang: 'en'|'es', onClose: () => void })
                         </div>
                         <div className="p-4 flex-1 flex flex-col gap-3">
                             <div>
-                                <h4 className="text-xs font-bold text-red-700 uppercase mb-1 tracking-wider">Ingredients</h4>
-                                <p className="text-sm text-gray-800 leading-snug">{drink.ingredients}</p>
+                                <h4 className="text-xs font-bold text-red-700 uppercase mb-1 tracking-wider">{lang === 'en' ? 'Ingredients' : 'Ingredientes'}</h4>
+                                <p className="text-sm text-gray-800 leading-snug">{getTx(drink, 'ingredients', lang)}</p>
                             </div>
                             <div>
-                                <h4 className="text-xs font-bold text-green-700 uppercase mb-1 tracking-wider">Instructions</h4>
-                                <p className="text-sm text-gray-600 italic">{drink.instructions}</p>
+                                <h4 className="text-xs font-bold text-green-700 uppercase mb-1 tracking-wider">{lang === 'en' ? 'Instructions' : 'Instrucciones'}</h4>
+                                <p className="text-sm text-gray-600 italic">{getTx(drink, 'instructions', lang)}</p>
                             </div>
                         </div>
                     </Card>
                 ))}
             </div>
             <div className="px-4">
-                 <button onClick={onClose} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-black transition-transform active:scale-95">Back to Party</button>
+                 <button onClick={onClose} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-black transition-transform active:scale-95">{lang === 'en' ? 'Back to Party' : 'Volver'}</button>
             </div>
         </div>
     );
@@ -1831,11 +1861,14 @@ export const App = () => {
   // Photo Download State
   const [zipping, setZipping] = useState(false);
 
-  // Force scroll logic on view change (Fixing Disappearing Header)
+  // Force scroll logic on view change (Fixing Disappearing Header & Scroll Position)
   useEffect(() => {
      if(!scrollTarget) {
          if (mainRef.current) mainRef.current.scrollTo(0, 0);
-         window.scrollTo(0, 0); // Fallback
+         // "Start at Top" Rule for main window as well
+         if (!window.location.hash) {
+            window.scrollTo(0, 0);
+         }
      }
   }, [view, scrollTarget]);
 
@@ -1845,16 +1878,20 @@ export const App = () => {
       setView('GAMES');
       if (targetId) {
           setScrollTarget(targetId);
+      } else {
+          window.scrollTo(0, 0);
       }
   };
   
   const handleProfileClick = () => {
       setLastView(view);
       setView('PROFILE');
+      window.scrollTo(0, 0);
   };
 
   const goBack = () => {
       setView(lastView || 'HOME');
+      window.scrollTo(0, 0);
   };
 
   // Facts Logic: Shuffle once on mount, then cycle through
@@ -2034,7 +2071,7 @@ export const App = () => {
           </div>;
           action = (
              <div className="flex items-center gap-3">
-                 <button onClick={()=>setView('ADMIN')}><IconLock className="w-6 h-6 text-gray-400"/></button>
+                 <button onClick={()=>{ setView('ADMIN'); window.scrollTo(0,0); }}><IconLock className="w-6 h-6 text-gray-400"/></button>
              </div>
           );
       } else if (view === 'GAMES') {
@@ -2062,7 +2099,7 @@ export const App = () => {
       else if (view === 'ADMIN') title = t.nav.ADMIN;
       else if (view === 'DRINKS') {
           title = t.drinks.title;
-          back = () => setView('HOME'); // Explicit Home Navigation
+          back = () => { setView('HOME'); window.scrollTo(0,0); };
           action = profileAction;
       }
       else if (view === 'PROFILE') {
@@ -2128,7 +2165,7 @@ export const App = () => {
                        if (lower.includes('scavenger') || lower.includes('búsqueda')) {
                            return (
                                <li key={i}>
-                                   <button onClick={() => setView('HUNT_VILLAGE')} className="underline decoration-green-400 decoration-2 underline-offset-4 hover:text-green-700 font-sweater">{s}</button>
+                                   <button onClick={() => { setView('HUNT_VILLAGE'); window.scrollTo(0,0); }} className="underline decoration-green-400 decoration-2 underline-offset-4 hover:text-green-700 font-sweater">{s}</button>
                                </li>
                            );
                        }
@@ -2137,7 +2174,7 @@ export const App = () => {
                        if (lower.includes('drink') || lower.includes('bebida')) {
                            return (
                                <li key={i}>
-                                   <button onClick={() => setView('DRINKS')} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">{s}</button>
+                                   <button onClick={() => { setView('DRINKS'); window.scrollTo(0,0); }} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">{s}</button>
                                </li>
                            )
                        }
@@ -2147,7 +2184,7 @@ export const App = () => {
                             return (
                                 <React.Fragment key={i}>
                                     <li>
-                                       <button onClick={()=>setView('VOTING')} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">
+                                       <button onClick={()=>{ setView('VOTING'); setVoteMode('SWEATER'); window.scrollTo(0,0); }} className="underline decoration-red-400 decoration-2 underline-offset-4 hover:text-red-700 font-sweater">
                                            {t.home.castVote}
                                        </button>
                                    </li>
@@ -2282,12 +2319,12 @@ export const App = () => {
         </div>}
         
         {view==='ADMIN'&&<AdminDashboard users={users} polls={polls} hunts={hunts} games={games} onClose={()=>setView('HOME')} setLightboxUrl={setLightboxUrl}/>}
-        {view==='PROFILE'&&<ProfileScreen user={user} users={users} games={games} hunts={hunts} onClose={goBack} onGoToGames={(target: string) => goToGames(target)} onGoToVote={() => setView('VOTING')} setLightboxUrl={setLightboxUrl} />}
-        {view==='DRINKS' && <DrinksMenu lang={userLang} onClose={() => setView('HOME')} />}
+        {view==='PROFILE'&&<ProfileScreen user={user} users={users} games={games} hunts={hunts} onClose={goBack} onGoToGames={(target: string) => goToGames(target)} onGoToVote={() => { setView('VOTING'); setVoteMode('SWEATER'); window.scrollTo(0,0); }} setLightboxUrl={setLightboxUrl} />}
+        {view==='DRINKS' && <DrinksMenu lang={userLang} onClose={() => { setView('HOME'); window.scrollTo(0,0); }} />}
         {view==='PHOTOS'&&<div className="space-y-4"><Button onClick={downloadAllPhotos} disabled={zipping} className="w-full text-xs bg-red-600 text-white font-bold py-3 rounded shadow-md">{zipping ? (userLang==='en'?'Zipping...':'Comprimiendo...') : t.photos.download}</Button><div className="columns-2 gap-2 space-y-2">{photos.map((p:any)=><div key={p.id} className="break-inside-avoid relative rounded overflow-hidden cursor-pointer active:opacity-90 transition-opacity" onClick={()=>setLightboxUrl(p.url)}><img src={p.url} className="w-full" alt="Gallery"/></div>)}</div><label className="fixed bottom-24 right-6 bg-green-600 p-4 rounded-full shadow-xl cursor-pointer"><IconPlus className="w-6 h-6 text-white"/><input type="file" multiple accept="image/*" className="hidden" onChange={async e=>{if(e.target.files){for(const f of Array.from(e.target.files) as File[]){const compressed = await compressImage(f); const r=firebaseStorage.ref(storage,`photos/${Date.now()}_${f.name}`);await firebaseStorage.uploadBytes(r,compressed);await addDoc(collection(db,'photos'),{url:await firebaseStorage.getDownloadURL(r),uploaderId:user.id,timestamp:Date.now()})}}}}/></label></div>}
       </main>
       <nav className="bg-red-700 border-t border-red-800 p-2 pb-6 grid grid-cols-6 gap-1 text-[10px] font-bold fixed bottom-0 w-full max-w-3xl z-[60] h-20 items-center">
-        {[ ['HOME',IconHome],['HUNT_VILLAGE',IconVillage],['HUNT_HOUSE',IconHouse],['VOTING',IconVote],['GAMES',IconGamepad],['PHOTOS',IconCamera] ].map(([v,I]:any)=><button key={v} onClick={()=> {setLastView(view); setView(v);}} className={`flex flex-col items-center justify-center transition-all ${view===v?'text-white scale-110':'text-red-300'}`}><I className={`w-8 h-8 ${view===v?'stroke-2':'stroke-1'}`}/></button>)}
+        {[ ['HOME',IconHome],['HUNT_VILLAGE',IconVillage],['HUNT_HOUSE',IconHouse],['VOTING',IconVote],['GAMES',IconGamepad],['PHOTOS',IconCamera] ].map(([v,I]:any)=><button key={v} onClick={()=> {setLastView(view); setView(v); window.scrollTo({ top: 0, behavior: 'instant' }); window.history.replaceState(null, '', location.pathname); }} className={`flex flex-col items-center justify-center transition-all ${view===v?'text-white scale-110':'text-red-300'}`}><I className={`w-8 h-8 ${view===v?'stroke-2':'stroke-1'}`}/></button>)}
       </nav>
     </div>
   );
